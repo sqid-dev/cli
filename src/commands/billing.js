@@ -17,6 +17,8 @@ Commands:
 `;
 
 const usd = (cents) => cents == null ? null : `$${(cents / 100).toFixed(2)}`;
+// The overview's plan is the Stripe subscription view ({ status, items:[{name, amount}], trial, current_period_end }).
+const planLine = (p) => !p ? 'none' : typeof p !== 'object' ? String(p) : `${p.items?.[0]?.name || p.name || 'plan'}${p.trial ? ' (trial)' : ''}${p.status ? `, ${p.status}` : ''}${p.current_period_end ? `, renews ${String(p.current_period_end).slice(0, 10)}` : ''}${p.cancel_at_period_end ? ', cancels at period end' : ''}`;
 
 export async function run({ args, flags, out, mode }){
   let sub = args[0] || 'status';
@@ -28,7 +30,7 @@ export async function run({ args, flags, out, mode }){
     let data = { plan : overview?.plan ?? account?.plan ?? null, card : card ? { brand : card.brand, last4 : card.last4 } : null, balance : account?.balance ?? null, paused : account?.paused ?? null, payment_issue : account?.payment_issue ?? null, auto_reload : account?.auto_reload ?? null, oem : account?.oem ?? null, usage : usage?.identifications?.totals ? { month : usage.month, ...usage.identifications.totals } : null, raw : { overview, account, usage } };
     return {
       data,
-      text : [`Plan: ${typeof data.plan === 'object' ? JSON.stringify(data.plan) : data.plan}`, `Card: ${card ? `${card.brand} •••• ${card.last4}` : 'none on file'}`, data.balance != null ? `Balance: ${typeof data.balance === 'object' ? JSON.stringify(data.balance) : data.balance}` : null, data.usage ? `This month: ${data.usage.first} first identifications, ${data.usage.returning} returning, ${data.usage.plus} plus` : null, data.payment_issue ? `Payment issue: ${JSON.stringify(data.payment_issue)}` : null].filter(Boolean).join('\n'),
+      text : [`Plan: ${planLine(data.plan)}`, `Card: ${card ? `${card.brand} •••• ${card.last4}` : 'none on file'}`, data.balance != null ? `Balance: ${typeof data.balance === 'object' ? JSON.stringify(data.balance) : data.balance}` : null, data.usage ? `This month: ${data.usage.first} first identifications, ${data.usage.returning} returning, ${data.usage.plus} plus` : null, data.payment_issue ? `Payment issue: ${JSON.stringify(data.payment_issue)}` : null].filter(Boolean).join('\n'),
       next : card ? [] : [{ command : 'sqid billing card', when : 'to add a card in the browser' }]
     };
   }

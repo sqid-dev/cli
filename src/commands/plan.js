@@ -24,7 +24,7 @@ const wrap = (error) => { let m = ERR[error.code]; return m ? new CliError(error
 
 export async function run({ args, flags, mode }){
   let [sub, a, b] = args;
-  if(!sub || sub === 'show'){ let r = await api('GET', '/api/sqid/billing/account', { flags }); let plan = r?.plan ?? r?.oem?.plan ?? null; return { data : { plan, oem : r?.oem || null, upgrade : r?.upgrade || null, packs : r?.packs || null }, text : `Plan: ${typeof plan === 'object' ? JSON.stringify(plan) : plan}` }; }
+  if(!sub || sub === 'show'){ let r = await api('GET', '/api/sqid/billing/account', { flags }); let plan = r?.plan ?? r?.oem?.plan ?? null; return { data : { plan, oem : r?.oem || null, upgrade : r?.upgrade || null, packs : r?.packs || null }, text : `Plan: ${typeof plan === 'object' ? (plan.items?.[0]?.name || plan.name || JSON.stringify(plan)) : plan}${r?.upgrade ? `\nUpgrade: ${JSON.stringify(r.upgrade)}` : ''}` }; }
   if(sub === 'set'){
     if(a === 'oem'){
       if(flags['accept-terms'] !== true){ throw new CliError('terms_required', 'Upgrading to OEM accepts the OEM addendum.', ERR.terms_required[0], [{ command : ERR.terms_required[1], description : 'Upgrade' }], undefined, 2); }
