@@ -40,7 +40,7 @@ export async function run({ flags }){
 
   let me;
   try{ me = await api('GET', '/api/sqid/me', { flags }); }
-  catch(error){ add('api', 'fail', `Sqid did not accept the token (${error.code}).`, 'Sign in again.', 'sqid login --force'); return finish(checks); }
+  catch(error){ add('api', 'fail', `Sqid did not accept the token (${error.code}).`, 'Sign in again.', 'sqid auth login --force'); return finish(checks); }
   add('plan', me.account?.hasSubscription ? 'ok' : 'warn', me.account?.hasSubscription ? 'Account has a plan.' : 'No plan yet; the free Developer plan starts with the first site.', me.account?.hasSubscription ? undefined : 'Create a site.', me.account?.hasSubscription ? undefined : 'sqid init --url https://example.com');
 
   let project = await readProject();
