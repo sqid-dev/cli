@@ -151,3 +151,66 @@ test('README usage block matches src/index.js USAGE', async () => {
   let usage = USAGE.replace(/\n\nDocs:.*\n$/, '\n');
   assert.equal(block, usage);
 });
+
+async function fakeApi(){
+  let seen = [];
+  let hooks = [];
+  let server = http.createServer(async (req, res) => {
+    let body = ''; for await (let c of req){ body += c; }
+    let u = new URL(req.url, 'http://x');
+    seen.push({ method : req.method, path : u.pathname, query : Object.fromEntries(u.searchParams), body : body ? JSON.parse(body) : null, auth : req.headers.authorization });
+    res.setHeader('content-type', 'application/json');
+    if(u.pathname === '/api/sqid/me'){ return res.end(JSON.stringify({ email : 'dev@acme.com', role : 'owner', account : { hasSubscription : true } })); }
+    if(u.pathname === '/api/sqid/projects'){ return res.end(JSON.stringify([{ _id : 'sdk1', name : 'Acme', enabled : true, state : { deployed : true, connected : true } }])); }
+    if(u.pathname === '/api/sqid/sdks/sdk1/webhooks'){ return res.end(JSON.stringify(hooks)); }
+    if(req.method === 'POST' && /\/projects\/sdk1\/webhook$/.test(u.pathname)){ let b = JSON.parse(body); let w = { id : 'wh' + (hooks.length + 1), name : b.name, namespace : b.namespace, enabled : b.enabled, url : b.source.webhook_url, health : { status : 'no_deliveries' }, totals : { success : 0, failed : 0 } }; hooks.push(w); return res.end(JSON.stringify({ _id : w.id })); }
+    if(req.method === 'POST' && /\/webhook\/test$/.test(u.pathname)){ return res.end(JSON.stringify({ request : { payload : { hello : 1 } }, response : { success : true, status : 200, data : 'ok' } })); }
+    if(req.method === 'DELETE'){ hooks = hooks.filter(h => !u.pathname.endsWith('/' + h.id)); return res.end('{}'); }
+    res.statusCode = 404; res.end(JSON.stringify({ error : 'nope' }));
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  return { server, seen, origin : `http://127.0.0.1:${server.address().port}` };
+}
+
+test('webhook: add defaults to identification (v2 route), page uses v1 with settings, list, test, delete needs --yes', async () => {
+  let { server, seen, origin } = await fakeApi();
+  let env = { SQID_API : origin, SQID_TOKEN : 'ak_test' };
+  try{
+    let a = await runCli(['webhook', 'add', 'https://acme.test/api/visitors'], env);
+    assert.equal(a.code, 0, a.err);
+    let add = seen.find(r => r.method === 'POST' && r.path.endsWith('/webhook'));
+    assert.equal(add.path, '/api/v2/projects/sdk1/webhook', 'identification goes to the v2 route');
+    assert.equal(add.body.namespace, 'visitor.identification.created.v2');
+    assert.equal(add.body.source.webhook_url, 'https://acme.test/api/visitors');
+    assert.equal(add.body.source.settings, undefined, 'v2 has no payload sections');
+    assert.equal(add.auth, 'Bearer ak_test');
+    assert.match(JSON.parse(a.out).data.name, /acme\.test/);
+
+    let m = await runCli(['webhook', 'add', 'https://acme.test/api/moments', '--event', 'moment'], env);
+    assert.equal(JSON.parse(m.out).data.namespace, 'visitor.moment.created.v2');
+
+    let pg = await runCli(['webhook', 'add', 'https://acme.test/api/pages', '--event', 'page', '--auth', 'u:p:w'], env);
+    assert.equal(pg.code, 0, pg.err);
+    let v1 = seen.filter(r => r.method === 'POST' && r.path === '/api/projects/sdk1/webhook').pop();
+    assert.equal(v1.body.namespace, 'visitor.connection.event');
+    assert.equal(v1.body.source.settings.context.enabled, true);
+    assert.deepEqual(v1.body.source.auth, { username : 'u', password : 'p:w' });
+
+    let bad = await runCli(['webhook', 'add', 'http://acme.test/x'], env);
+    assert.equal(bad.code, 2, 'http refused before any call');
+
+    let l = await runCli(['webhook', 'list'], env);
+    let rows = JSON.parse(l.out).data;
+    assert.deepEqual(rows.map(r => r.event), ['identification', 'moment', 'page']);
+
+    let t = await runCli(['webhook', 'test', 'wh1'], env);
+    assert.equal(JSON.parse(t.out).data.delivered, true);
+    assert.equal(seen.filter(r => r.path.endsWith('/webhook/test')).pop().path, '/api/v2/projects/sdk1/webhook/test');
+
+    let d = await runCli(['webhook', 'delete', 'wh3'], env);
+    assert.equal(d.code, 2); assert.equal(JSON.parse(d.err).error.code, 'confirm_required');
+    let dy = await runCli(['webhook', 'delete', 'wh3', '--yes'], env);
+    assert.equal(JSON.parse(dy.out).data.deleted, true);
+    assert.equal(seen.filter(r => r.method === 'DELETE').pop().path, '/api/projects/sdk1/webhook/wh3', 'v1 webhook deleted on the v1 route');
+  } finally { server.close(); }
+});

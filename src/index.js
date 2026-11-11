@@ -14,6 +14,7 @@ const COMMANDS = {
   doctor  : () => import('./commands/doctor.js'),
   snippet : () => import('./commands/snippet.js'),
   sites   : () => import('./commands/sites.js'),
+  webhook : () => import('./commands/webhook.js'),
   whoami  : () => import('./commands/whoami.js')
 };
 
@@ -51,6 +52,7 @@ Commands:
   init             [options]                      Create a site for this project and print the snippet
   sites                                           List the sites on this account
   snippet          [options]                      Print the install snippet for the site
+  webhook                                         Endpoints that receive identified visitors, moments, pages, clicks
   whoami           [options]                      Show the signed-in person and account
 
 Docs: https://docs.sqid.dev   For agents: https://docs.sqid.dev/llms-full.txt

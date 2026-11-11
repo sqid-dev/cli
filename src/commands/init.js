@@ -72,9 +72,9 @@ async function done(id, name, origins, status, extra = {}){
       snippet
     ].filter(x => x !== null).join('\n'),
     next : [
-      { command : 'sqid doctor',                                   when : 'after the snippet is in the layout and deployed' },
-      { command : 'sqid webhook add <url> --event identification', when : 'to receive each identified visitor as a webhook' },
-      { command : 'sqid webhook add <url> --event moment',         when : 'to send visitor moments to your agent' }
+      { command : 'sqid webhook add https://<your-app>/api/visitors',               when : 'to receive each identified visitor (who is on the site) as a webhook' },
+      { command : 'sqid webhook add https://<your-app>/api/moments --event moment', when : 'to send visitor intent moments to your agent' },
+      { command : 'sqid doctor',                                                    when : 'after the snippet is in the layout and deployed' }
     ]
   };
 }

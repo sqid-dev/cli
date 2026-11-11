@@ -15,14 +15,17 @@ the one script tag your layout needs. You never open a dashboard.
 In Claude Code the whole flow is one line:
 
 ```
-> Embed Sqid in our app. Send visitor moments to our agent.
+> Add Sqid to our app and tell us who is visiting.
 
   ✓ Signed in to Sqid
   ✓ Site provisioned
   ✓ Script added to layout (one line)
-  ✓ Webhook wired → /api/moments
+  ✓ Webhook wired → /api/visitors   (each identified visitor, full record)
   ✓ Stream is live
 ```
+
+Ask for moments instead ("send visitor moments to our agent") and the webhook is
+wired to `/api/moments` with `--event moment`. Both can run side by side.
 
 What `sqid init` changes:
 
@@ -76,13 +79,13 @@ Commands:
   init             [options]                      Create a site for this project and print the snippet
   sites                                           List the sites on this account
   snippet          [options]                      Print the install snippet for the site
+  webhook                                         Endpoints that receive identified visitors, moments, pages, clicks
   whoami           [options]                      Show the signed-in person and account
 ```
 
 `sqid login` and `sqid logout` are shorthands for `sqid auth login` and `sqid auth logout`.
 
-Coming next, in this order: `webhook add|list|test|deliveries` (identification,
-moment, page and click events), `visitors` and `enrich`, `signals` and `moments`,
+Coming next, in this order: `visitors` and `enrich`, `signals` and `moments`,
 `billing`, `plan`, `packs`, `cap`, `usage`, `logs`, `open`, `feedback`, `telemetry`,
 `update`, `completion`, `mcp`.
 
