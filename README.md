@@ -5,7 +5,7 @@ The Sqid command-line interface.
 ## Add Sqid to an app
 
 ```sh
-npx -y sqid@latest init
+npx -y @sqid-dev/sqid@latest init
 ```
 
 `sqid init` is the setup path for developers and coding agents. It signs you in
@@ -38,7 +38,7 @@ What `sqid init` changes:
 After setup, run `sqid doctor` to verify the integration:
 
 ```sh
-npx -y sqid@latest doctor
+npx -y @sqid-dev/sqid@latest doctor
 ```
 
 ## Installation
@@ -46,7 +46,7 @@ npx -y sqid@latest doctor
 ### npm
 
 ```sh
-npm install -g sqid
+npm install -g @sqid-dev/sqid
 ```
 
 Node 18.17 or newer. No other dependencies.

@@ -1,5 +1,5 @@
 {
-  "name": "sqid",
+  "name": "@sqid-dev/sqid",
   "version": "0.1.0",
   "description": "Sqid from the terminal and from coding agents: sign in with your browser, create sites, receive visitor identifications and moments, manage billing.",
   "license": "MIT",
@@ -30,5 +30,8 @@
     "cli",
     "claude code",
     "agent"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
