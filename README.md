@@ -96,8 +96,6 @@ Commands:
 
 `sqid login` and `sqid logout` are shorthands for `sqid auth login` and `sqid auth logout`.
 
-Coming next: `open`, `feedback`, `telemetry`, `update`, `completion`, `mcp`.
-
 ## The skill
 
 `sqid skill install` copies the bundled Claude Code skill (`skill/sqid/`) into
@@ -135,9 +133,7 @@ is refused with the flag that answers it.
 
 ## Telemetry
 
-The CLI sends nothing but the API calls you ask for. There is no usage telemetry yet;
-when it arrives it will be off under agents by default and controlled by
-`sqid telemetry`, `SQID_TELEMETRY_DISABLED` and `DO_NOT_TRACK`.
+None. The CLI sends nothing but the API calls you ask for.
 
 ## Docs
 
