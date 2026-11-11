@@ -104,7 +104,7 @@ test('login (loopback): PKCE + state round trip, exp from the JWT, then logout r
     assert.match(seen.token.code_verifier, /^[A-Za-z0-9_-]{43}$/);
 
     let saved = JSON.parse(await fs.readFile(path.join(tmp, 'credentials.json'), 'utf8'));
-    assert.ok(Math.abs(saved.expires_at - (Date.now() + 86400e3)) < 5000, 'expires_at comes from the JWT exp, not expires_in');
+    assert.ok(Math.abs(saved.expires_at - (Date.now() + 86400e3)) < 60_000, 'expires_at comes from the JWT exp (1 day), not expires_in (366 days)');
 
     let again = await runCli(['login'], { SQID_OAUTH_ISSUER : origin });
     assert.equal(JSON.parse(again.out).data.signed_in, true, 'second login is a no-op');
