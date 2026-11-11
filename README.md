@@ -5,11 +5,11 @@ The Sqid command-line interface.
 ## Add Sqid to an app
 
 ```sh
-npx -y @sqid-dev/sqid init
+npx -y sqid-cli init
 ```
 
-The package is `@sqid-dev/sqid`; the command it installs is `sqid`. (npm refuses the bare
-name `sqid` as too close to `uuid` and `ulid`.)
+On npm the package is `@sqid-dev/sqid`, with `sqid-cli` as an alias of it; either one
+installs the `sqid` command. (npm refuses the bare name `sqid` as too close to `uuid`.)
 
 `sqid init` is the setup path for developers and coding agents. It signs you in
 through your browser the first time, creates a site for the project, and prints
@@ -41,7 +41,7 @@ What `sqid init` changes:
 After setup, run `sqid doctor` to verify the integration:
 
 ```sh
-npx -y @sqid-dev/sqid doctor
+npx -y sqid-cli doctor
 ```
 
 ## Installation
@@ -49,7 +49,7 @@ npx -y @sqid-dev/sqid doctor
 ### npm
 
 ```sh
-npm install -g @sqid-dev/sqid
+npm install -g sqid-cli      # or @sqid-dev/sqid
 ```
 
 Node 18.17 or newer. No other dependencies.

@@ -1,7 +1,7 @@
 ---
 name: sqid
 description: Add Sqid to a web app and use what it learns about visitors, all from the terminal with the `sqid` CLI. Use when the user says "add Sqid", "install Sqid", "who is on my site", "identify visitors", "de-anonymize visitors", "visitor identification webhook", "send visitor moments to our agent", "Sqid signals", "enrich this email", "Sqid billing/plan/credits", or asks to check a Sqid setup.
-allowed-tools: Bash(sqid *), Bash(npx -y @sqid-dev/sqid *)
+allowed-tools: Bash(sqid *), Bash(npx -y sqid-cli *)
 metadata:
   version: 0.1.0
   source: https://github.com/sqid-dev/cli
@@ -23,7 +23,7 @@ on Sqid is thin or stale: prefer the CLI's own output (`--json`, `webhook previe
 - Never put keys in client code. The snippet carries only the site id, which is public.
 - The CLI writes one project file, `.sqid.json`. You edit the user's layout and handler.
 - Destructive commands need `--yes`. Ask the user before deleting anything.
-- If `sqid` is not installed, use `npx -y @sqid-dev/sqid <command>`.
+- If `sqid` is not installed, use `npx -y sqid-cli <command>`.
 
 ## What the user wants, and what to run
 
