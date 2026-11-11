@@ -10,7 +10,11 @@ import { version } from './meta.js';
 const COMMANDS = {
   login  : () => import('./commands/login.js'),
   logout : () => import('./commands/logout.js'),
-  whoami : () => import('./commands/whoami.js')
+  whoami : () => import('./commands/whoami.js'),
+  init    : () => import('./commands/init.js'),
+  snippet : () => import('./commands/snippet.js'),
+  sites   : () => import('./commands/sites.js'),
+  doctor  : () => import('./commands/doctor.js')
 };
 
 const HELP = `sqid ${version}  Sqid from the terminal and from coding agents.
@@ -21,6 +25,12 @@ Account
   login              Sign in or sign up in your browser (--device for SSH/headless, --no-browser to print the URL only)
   logout             Revoke this machine's token and forget it
   whoami             Who is signed in, which account, which credentials are present
+
+Site
+  init               Create a site for this project, write .sqid.json, print the snippet (--name, --url)
+  snippet            Print the install snippet for the site
+  sites list         List the sites on this account
+  doctor             Check sign-in, plan, site, snippet in project, deployed, connected, webhooks
 
 Global options
   --json             Machine-readable output (default when stdout is not a terminal)
