@@ -10,11 +10,18 @@ import { version } from './meta.js';
 
 const COMMANDS = {
   auth    : () => import('./commands/auth/index.js'),
+  billing : () => import('./commands/billing.js'),
+  cap     : () => import('./commands/cap.js'),
   init    : () => import('./commands/init.js'),
   doctor  : () => import('./commands/doctor.js'),
   enrich  : () => import('./commands/enrich.js'),
   keys    : () => import('./commands/keys.js'),
+  logs    : () => import('./commands/logs.js'),
+  moments : () => import('./commands/moments.js'),
+  plan    : () => import('./commands/plan.js'),
+  signals : () => import('./commands/signals.js'),
   snippet : () => import('./commands/snippet.js'),
+  usage   : () => import('./commands/usage.js'),
   sites   : () => import('./commands/sites.js'),
   skill   : () => import('./commands/skill.js'),
   visitors: () => import('./commands/visitors.js'),
@@ -51,14 +58,21 @@ Options:
 
 Commands:
   auth                                            Manage authentication (login, logout, status)
+  billing                                         Status, card (browser), top-up, auto-reload, invoices
+  cap              [options]                      Identification cap for the site
   doctor           [options]                      Check this project's Sqid integration health
   enrich           [options]                      Look a person up by email, phone or LinkedIn URL
   help             [command]                      Display help for command
   init             [options]                      Create a site for this project and print the snippet
   keys                                            SDK keys for the site (the REST visitor API)
+  logs                                            API calls and webhook deliveries
+  moments                                         What Signals decided: list, get, tail
+  plan                                            Show or change the plan; buy OEM credit packs
+  signals                                         Signals on, off or status for the site
   sites                                           List the sites on this account
   skill                                           Install the Claude Code skill for this CLI globally
   snippet          [options]                      Print the install snippet for the site
+  usage            [options]                      Identifications billed this month, per site
   visitors                                        Identified visitors: list, get, journey, key-events, scores
   webhook                                         Endpoints that receive identified visitors, moments, pages, clicks
   whoami           [options]                      Show the signed-in person and account

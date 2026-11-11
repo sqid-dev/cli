@@ -289,3 +289,56 @@ test('visitors + enrich + keys: identities list, profile get, SDK key minted onc
     assert.equal(JSON.parse(kl.out).data[0].key, 'sdkjwt.0');
   } finally { server.close(); pub.close(); }
 });
+
+test('signals, moments, billing, plan, cap, usage, logs: routes, bodies, guards', async () => {
+  let seen = [];
+  let server = http.createServer(async (req, res) => {
+    let b = ''; for await (let c of req){ b += c; }
+    let u = new URL(req.url, 'http://x'); seen.push({ method : req.method, path : u.pathname, query : Object.fromEntries(u.searchParams), body : b ? JSON.parse(b) : null });
+    res.setHeader('content-type', 'application/json');
+    let P = u.pathname;
+    if(P === '/api/sqid/projects'){ return res.end(JSON.stringify([{ _id : 'sdk1', name : 'Acme', state : {} }])); }
+    if(P === '/api/sqid/signals/settings'){ return res.end(JSON.stringify({ sdks : [{ id : 'sdk1', state : 'on', effective : 'on', enabled : true }], account : { state : 'on', locked : false } })); }
+    if(P === '/api/sqid/sdks/sdk1/signals'){ return res.end(JSON.stringify({ state : JSON.parse(b).enabled ? 'on' : 'off' })); }
+    if(P === '/api/sqid/moments'){ return res.end(JSON.stringify({ events : [{ id : 'm1', kind : 'form_stall', decision : { action : 'engage' }, page : '/signup' }], next : { before : 5, seen : ['m1'] } })); }
+    if(P === '/api/sqid/moments/m1'){ return res.end(JSON.stringify({ id : 'm1', kind : 'form_stall' })); }
+    if(P === '/api/sqid/billing'){ return res.end(JSON.stringify({ plan : 'developer', cards : [{ id : 'pm_1', brand : 'visa', last4 : '4242', default : true }] })); }
+    if(P === '/api/sqid/billing/account'){ return res.end(JSON.stringify({ plan : 'developer', balance : { total_cents : 1234 }, auto_reload : { enabled : false } })); }
+    if(P === '/api/sqid/billing/usage'){ return res.end(JSON.stringify({ month : '2026-11', mode : 'prepaid', identifications : { totals : { first : 3, returning : 1, plus : 0, units : 4 }, sites : [{ sdk_id : 'sdk1', first : 3, returning : 1, plus : 0, units : 4 }] } })); }
+    if(P === '/api/sqid/billing/topup'){ return res.end(JSON.stringify({ ok : true })); }
+    if(P === '/api/sqid/billing/auto-reload'){ return res.end(JSON.stringify({ ok : true })); }
+    if(P === '/api/sqid/billing/plan'){ let body = JSON.parse(b); if(body.plan === 'oem' && !body.accept_terms){ res.statusCode = 400; return res.end(JSON.stringify({ error : 'terms_required' })); } res.statusCode = 409; return res.end(JSON.stringify({ error : 'no_card' })); }
+    if(P === '/api/sqid/billing/packs'){ return res.end(JSON.stringify({ ok : true })); }
+    if(P === '/api/sqid/sdks/sdk1/cap'){ return res.end(JSON.stringify({ ok : true })); }
+    if(P === '/api/sqid/api-logs'){ return res.end(JSON.stringify({ events : [{ id : 'e1', endpoint : '/visitors/x', status : 500, success : false }], next : null })); }
+    if(P === '/api/sqid/sdks/sdk1/webhook-events'){ return res.end(JSON.stringify({ events : [], next : null })); }
+    res.statusCode = 404; res.end(JSON.stringify({ error : 'nf' }));
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  let env = { SQID_API : `http://127.0.0.1:${server.address().port}`, SQID_TOKEN : 'ak' };
+  const last = (p, m = 'GET') => seen.filter(r => r.path === p && r.method === m).pop();
+  try{
+    assert.equal(JSON.parse((await runCli(['signals', 'status'], env)).out).data.site_setting.effective, 'on');
+    await runCli(['signals', 'off'], env); assert.deepEqual(last('/api/sqid/sdks/sdk1/signals', 'PATCH').body, { enabled : false });
+    let ml = await runCli(['moments', 'list', '--decision', 'engage', '--kind', 'friction'], env);
+    assert.deepEqual(last('/api/sqid/moments').query, { sdk : 'sdk1', decision : 'engage', kind : 'friction' });
+    assert.match(JSON.parse(ml.out).next[0].command, /--before 5 --seen m1/);
+    assert.equal(JSON.parse((await runCli(['moments', 'get', 'm1'], env)).out).data.kind, 'form_stall');
+    let bs = JSON.parse((await runCli(['billing', 'status'], env)).out).data;
+    assert.deepEqual(bs.card, { brand : 'visa', last4 : '4242' }); assert.equal(bs.usage.first, 3);
+    await runCli(['billing', 'topup', '20'], env); assert.deepEqual(last('/api/sqid/billing/topup', 'POST').body, { amount_cents : 2000 });
+    assert.equal((await runCli(['billing', 'topup', '2'], env)).code, 2, 'below $5 is a usage error');
+    await runCli(['billing', 'auto-reload', 'on', '--threshold', '10', '--amount', '50'], env); assert.deepEqual(last('/api/sqid/billing/auto-reload', 'PUT').body, { enabled : true, threshold_cents : 1000, amount_cents : 5000 });
+    let noTerms = await runCli(['plan', 'set', 'oem'], env); assert.equal(noTerms.code, 2); assert.equal(JSON.parse(noTerms.err).error.code, 'terms_required');
+    assert.equal(seen.filter(r => r.path === '/api/sqid/billing/plan').length, 0, 'no call without --accept-terms');
+    let noCard = await runCli(['plan', 'set', 'oem', '--accept-terms'], env); assert.equal(JSON.parse(noCard.err).error.code, 'no_card'); assert.equal(JSON.parse(noCard.err).error.examples[0].command, 'sqid billing card');
+    let dg = await runCli(['plan', 'set', 'developer'], env); assert.equal(JSON.parse(dg.err).error.code, 'confirm_required');
+    await runCli(['plan', 'packs', 'buy', '5000'], env); assert.deepEqual(last('/api/sqid/billing/packs', 'POST').body, { pack : 5000 });
+    assert.equal((await runCli(['plan', 'packs', 'buy', '700'], env)).code, 2);
+    await runCli(['cap', 'set', '5000'], env); assert.deepEqual(last('/api/sqid/sdks/sdk1/cap', 'PATCH').body, { cap : 5000 });
+    await runCli(['cap', 'off'], env); assert.deepEqual(last('/api/sqid/sdks/sdk1/cap', 'PATCH').body, { cap : null });
+    let us = JSON.parse((await runCli(['usage', '--month', '2026-10'], env)).out); assert.equal(last('/api/sqid/billing/usage').query.month, '2026-10'); assert.equal(us.data.identifications.totals.units, 4);
+    await runCli(['logs', 'api', '--failed', '--endpoint', '/visitors/x'], env); assert.deepEqual(last('/api/sqid/api-logs').query, { status : 'failed', endpoint : '/visitors/x' });
+    await runCli(['logs', 'webhooks', '--failed'], env); assert.equal(last('/api/sqid/sdks/sdk1/webhook-events').query.status, 'failed');
+  } finally { server.close(); }
+});

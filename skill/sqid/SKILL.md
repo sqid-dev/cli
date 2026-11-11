@@ -77,8 +77,17 @@ or email prefixes; `--all-sites`). `sqid visitors get <id> --json` for the full 
 creates an SDK key for the site named "CLI on <hostname>". For the user's own backend,
 `sqid keys create --name Production` and the REST API https://docs.sqid.dev/api-reference.
 
-**Billing, plan, credits, usage**
-Not in this CLI version yet. Say so and point at the console https://app.sqid.dev.
+**"Turn on Signals" / "no moments are coming"**
+`sqid signals status --json`, then `sqid signals on`. `sqid moments list --decision engage --json`
+shows recent ones; `sqid moments tail` follows them live.
+
+**Billing: "add a card", "what's left", "upgrade", "cap spend"**
+`sqid billing status --json` (plan, card, balance, this month). `sqid billing card` opens the
+browser; never ask for card numbers. `sqid plan set oem --accept-terms` upgrades (tell the
+user it accepts the OEM addendum and charges $500/month); `sqid plan packs buy 5000` for OEM
+credits; `sqid billing topup 20` on Developer. `sqid cap set 5000` limits identifications per
+site; `sqid usage --json` shows the month. `sqid logs api --failed` and `sqid logs webhooks
+--failed` for failures.
 
 ## Output format when you finish a setup
 
