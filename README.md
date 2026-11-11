@@ -78,6 +78,7 @@ Commands:
   help             [command]                      Display help for command
   init             [options]                      Create a site for this project and print the snippet
   sites                                           List the sites on this account
+  skill                                           Install the Claude Code skill for this CLI globally
   snippet          [options]                      Print the install snippet for the site
   webhook                                         Endpoints that receive identified visitors, moments, pages, clicks
   whoami           [options]                      Show the signed-in person and account
@@ -88,6 +89,14 @@ Commands:
 Coming next, in this order: `visitors` and `enrich`, `signals` and `moments`,
 `billing`, `plan`, `packs`, `cap`, `usage`, `logs`, `open`, `feedback`, `telemetry`,
 `update`, `completion`, `mcp`.
+
+## The skill
+
+`sqid skill install` copies the bundled Claude Code skill (`skill/sqid/`) into
+`~/.claude/skills/sqid` (and the Codex, Cursor or `.agents` folders when they exist).
+It is about two pages, organised by what the user asks for, and it names the command
+for each ask. It is installed globally, never into your repository. `sqid skill show`
+prints it.
 
 ## Authentication
 

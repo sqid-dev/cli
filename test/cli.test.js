@@ -214,3 +214,24 @@ test('webhook: add defaults to identification (v2 route), page uses v1 with sett
     assert.equal(seen.filter(r => r.method === 'DELETE').pop().path, '/api/projects/sdk1/webhook/wh3', 'v1 webhook deleted on the v1 route');
   } finally { server.close(); }
 });
+
+test('skill install: copies SKILL.md and references into the global Claude folder only, by default', async () => {
+  let home = await fs.mkdtemp(path.join(os.tmpdir(), 'sqid-home-'));
+  let r = await runCli(['skill', 'install'], { HOME : home });
+  assert.equal(r.code, 0, r.err);
+  let out = JSON.parse(r.out).data.installed;
+  assert.deepEqual(out.map(i => i.agent), ['claude']);
+  let md = await fs.readFile(path.join(home, '.claude', 'skills', 'sqid', 'SKILL.md'), 'utf8');
+  assert.match(md, /^---\nname: sqid\n/);
+  assert.ok(await fs.stat(path.join(home, '.claude', 'skills', 'sqid', 'references', 'identification.md')));
+  let p = await runCli(['skill', 'path']);
+  assert.match(JSON.parse(p.out).data.path, /skill\/sqid\/$/);
+});
+
+test('skill: SKILL.md leads with identification before moments and names only commands that exist', async () => {
+  let md = await fs.readFile(new URL('../skill/sqid/SKILL.md', import.meta.url), 'utf8');
+  assert.ok(md.indexOf('Tell me who is on my site') < md.indexOf('Send visitor moments'), 'identification first');
+  const { USAGE } = await import('../src/index.js');
+  let known = new Set(USAGE.split('Commands:')[1].split('\n').map(l => l.trim().split(/\s+/)[0]).filter(Boolean));
+  for(let m of md.matchAll(/`sqid ([a-z]+)/g)){ assert.ok(known.has(m[1]) || m[1] === 'skill', `SKILL.md names unknown command: sqid ${m[1]}`); }
+});
