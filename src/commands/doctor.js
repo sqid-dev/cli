@@ -35,7 +35,7 @@ export async function run({ flags }){
   const add = (name, status, message, remedy, fix) => checks.push({ name, status, message, ...(remedy ? { remedy } : {}), ...(fix ? { fix } : {}) });
 
   let creds = await readCredentials();
-  if(!creds){ add('signed_in', 'fail', 'Not signed in on this machine.', 'Sign in.', 'sqid login'); return finish(checks); }
+  if(!creds){ add('signed_in', 'fail', 'Not signed in on this machine.', 'Sign in.', 'sqid auth login'); return finish(checks); }
   add('signed_in', 'ok', creds.source === 'env' ? 'SQID_TOKEN is set.' : `Signed in${creds.email ? ' as ' + creds.email : ''}.`);
 
   let me;

@@ -180,7 +180,7 @@ export async function refresh(refreshToken){
     let t = await tokenRequest({ grant_type : 'refresh_token', refresh_token : refreshToken });
     return { ...t, refresh_token : t.refresh_token || refreshToken };
   }catch(error){
-    throw new CliError('refresh_failed', `Could not refresh the session: ${error.message}`, 'Sign in again.', [{ command : 'sqid login', description : 'Sign in with your browser' }], error, 3);
+    throw new CliError('refresh_failed', `Could not refresh the session: ${error.message}`, 'Sign in again.', [{ command : 'sqid auth login', description : 'Sign in with your browser' }], error, 3);
   }
 }
 

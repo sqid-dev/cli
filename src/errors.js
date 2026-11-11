@@ -15,12 +15,12 @@ export class CliError extends Error {
     this.exit     = exit;
   }
   toJSON(){
-    return { error : this.code, message : this.message, remedy : this.remedy || undefined, examples : this.examples?.length ? this.examples : undefined };
+    return { code : this.code, message : this.message, remedy : this.remedy || undefined, examples : this.examples?.length ? this.examples : undefined };
   }
 }
 
 export const usageError  = (message, examples = []) => new CliError('usage', message, 'Check the command and its flags.', examples, undefined, 2);
 export const notSignedIn = () => new CliError('not_signed_in', 'No Sqid credentials on this machine.', 'Sign in first.', [
-  { command : 'sqid login',          description : 'Sign in with your browser' },
-  { command : 'sqid login --device', description : 'Sign in from another device (SSH, containers)' }
+  { command : 'sqid auth login',          description : 'Sign in with your browser' },
+  { command : 'sqid auth login --device', description : 'Sign in from another device (SSH, containers)' }
 ], undefined, 3);

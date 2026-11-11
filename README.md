@@ -1,18 +1,130 @@
 # sqid
 
-Sqid from the terminal and from coding agents. Sign in with your browser, create a
-site, receive visitor identifications and moments, manage billing. Nothing secret
-passes through the terminal: sign-in and card entry happen in the browser.
+The Sqid command-line interface.
 
-```
-npx sqid login          # browser sign-in (Clerk OAuth, PKCE, loopback callback)
-npx sqid login --device # SSH or containers: URL + code
-npx sqid whoami
-npx sqid logout --yes
+## Add Sqid to an app
+
+```sh
+npx -y sqid@latest init
 ```
 
-Agent mode (JSON in and out, `next` on every result, errors with `code`, `remedy`,
-`examples`) is on whenever stdout is not a terminal, or with `--json` / `SQID_MODE=agent`.
-Credentials live in `~/.config/sqid/credentials.json` (0600); `SQID_TOKEN` overrides.
+`sqid init` is the setup path for developers and coding agents. It signs you in
+through your browser the first time, creates a site for the project, and prints
+the one script tag your layout needs. You never open a dashboard.
 
-Design: `platform2/sqid/CLI.md`. Docs: https://docs.sqid.dev
+In Claude Code the whole flow is one line:
+
+```
+> Embed Sqid in our app. Send visitor moments to our agent.
+
+  ✓ Signed in to Sqid
+  ✓ Site provisioned
+  ✓ Script added to layout (one line)
+  ✓ Webhook wired → /api/moments
+  ✓ Stream is live
+```
+
+What `sqid init` changes:
+
+- Creates a site on your Sqid account (starting the free Developer plan first
+  when the account has none; no card).
+- Writes `.sqid.json` in the project root with the site id. That is the only
+  project file the CLI ever writes. It never edits your layout, `CLAUDE.md`,
+  `AGENTS.md` or `.mcp.json`; the agent (or you) pastes the snippet it prints.
+
+After setup, run `sqid doctor` to verify the integration:
+
+```sh
+npx -y sqid@latest doctor
+```
+
+## Installation
+
+### npm
+
+```sh
+npm install -g sqid
+```
+
+Node 18.17 or newer. No other dependencies.
+
+## Usage
+
+```
+Usage: sqid [options] [command]
+
+Sqid CLI
+
+Options:
+  -h, --help           Display help for command
+  --input-json <json>  Pass command options as a JSON string, @file.json, or -
+                       for stdin
+  --json               Emit JSON on stdout (default when stdout is not a TTY)
+  --mode <mode>        Force interaction mode (human or agent). Also settable
+                       via the SQID_MODE environment variable. Defaults to
+                       agent when run without a TTY.
+  --site <id|name>     Which site a command acts on (default: .sqid.json, or
+                       the only site)
+  -v, --version        Output the version number
+  --verbose            Show detailed output (enables debug messages)
+  --yes                Confirm destructive commands without a prompt
+
+Commands:
+  auth                                            Manage authentication (login, logout, status)
+  doctor           [options]                      Check this project's Sqid integration health
+  help             [command]                      Display help for command
+  init             [options]                      Create a site for this project and print the snippet
+  sites                                           List the sites on this account
+  snippet          [options]                      Print the install snippet for the site
+  whoami           [options]                      Show the signed-in person and account
+```
+
+`sqid login` and `sqid logout` are shorthands for `sqid auth login` and `sqid auth logout`.
+
+Coming next, in this order: `webhook add|list|test|deliveries` (identification,
+moment, page and click events), `visitors` and `enrich`, `signals` and `moments`,
+`billing`, `plan`, `packs`, `cap`, `usage`, `logs`, `open`, `feedback`, `telemetry`,
+`update`, `completion`, `mcp`.
+
+## Authentication
+
+`sqid auth login` runs an OAuth 2.0 PKCE flow against Sqid's identity provider: a
+one-shot listener on `127.0.0.1`, your browser, the consent screen, and the code
+exchanged in the terminal. Passwords never pass through the CLI. `--device` prints
+a URL and a code instead, for SSH sessions and containers. `--no-browser` only
+prints the URL.
+
+The access token lasts one day and refreshes itself while you keep using the CLI.
+Credentials live in `~/.config/sqid/credentials.json` (mode 0600; `SQID_CONFIG_DIR`
+moves the folder). `SQID_TOKEN` in the environment overrides the file, for CI.
+`sqid auth logout` revokes the grant and deletes the file.
+
+## Agent mode
+
+With no TTY, with `--json`, or with `SQID_MODE=agent`, every command prints one
+JSON document on stdout with `data` and `next` (the commands that make sense to
+run after this one). Errors go to stderr as JSON:
+
+```json
+{"error":{"code":"not_signed_in","message":"No Sqid credentials on this machine.","remedy":"Sign in first.","examples":[{"command":"sqid auth login","description":"Sign in with your browser"}]}}
+```
+
+Exit codes: `0` ok, `1` failure, `2` usage error, `3` not signed in. Destructive
+commands need `--yes` in agent mode. Prompts never block: anything that would ask
+is refused with the flag that answers it.
+
+## Telemetry
+
+The CLI sends nothing but the API calls you ask for. There is no usage telemetry yet;
+when it arrives it will be off under agents by default and controlled by
+`sqid telemetry`, `SQID_TELEMETRY_DISABLED` and `DO_NOT_TRACK`.
+
+## Docs
+
+- Product docs: https://docs.sqid.dev
+- Full docs in one file for agents: https://docs.sqid.dev/llms-full.txt
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## License
+
+MIT

@@ -29,7 +29,7 @@ export async function api(method, path, { body, flags, token } = {}){
   });
   let data = null;
   try{ data = await res.json(); }catch(error){ /* not json */ }
-  if(res.status === 401){ throw new CliError('unauthorized', 'Sqid did not accept this token.', 'Sign in again.', [{ command : 'sqid login', description : 'Sign in with your browser' }], undefined, 3); }
+  if(res.status === 401){ throw new CliError('unauthorized', 'Sqid did not accept this token.', 'Sign in again.', [{ command : 'sqid auth login', description : 'Sign in with your browser' }], undefined, 3); }
   if(res.status === 403 && data?.clerk_error?.reason === 'reverification-error'){ throw new CliError('console_only', 'This action needs a fresh second factor and is only available in the console.', `Open ${origin} in your browser.`); }
   if(!res.ok){ throw new CliError(data?.error || `http_${res.status}`, data?.message || data?.error || `${method} ${path} failed (${res.status})`, '', [], undefined); }
   return data;

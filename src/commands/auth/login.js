@@ -1,9 +1,9 @@
 import os from 'node:os';
-import { loginLoopback, loginDevice, userinfo } from '../oauth.js';
-import { writeCredentials, readCredentials } from '../credentials.js';
-import { isAgentHarness } from '../output.js';
+import { loginLoopback, loginDevice, userinfo } from '../../oauth.js';
+import { writeCredentials, readCredentials } from '../../credentials.js';
+import { isAgentHarness } from '../../output.js';
 
-export const help = `sqid login [--device] [--no-browser] [--force]
+export const help = `sqid auth login [--device] [--no-browser] [--force]
 
 Signs you in to Sqid (or signs you up) in your browser and keeps a token on this
 machine. Nothing secret passes through the terminal.

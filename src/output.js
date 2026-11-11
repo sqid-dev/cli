@@ -33,7 +33,7 @@ export class Output {
 
   fail(error){
     if(this.agent){
-      process.stderr.write(JSON.stringify({ ok : false, ...error.toJSON() }) + '\n');
+      process.stderr.write(JSON.stringify({ error : error.toJSON() }) + '\n');
     } else {
       process.stderr.write(`sqid: ${error.message}\n`);
       if(error.remedy){ process.stderr.write(`  ${error.remedy}\n`); }

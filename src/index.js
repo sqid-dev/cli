@@ -1,79 +1,87 @@
 // Entry point: parse argv, pick the mode (human on a TTY, agent otherwise), run
-// the command, print its result as text or JSON. Every command returns
-// { data, next } or throws a CliError { code, message, remedy, examples }.
+// the command, print its result as text or JSON. Every command module exports
+// `help` and `run({ args, flags, mode, out })`, returns { data, next, text } or
+// throws a CliError { code, message, remedy, examples }.
 
 import { CliError, usageError } from './errors.js';
-import { parseArgs } from './args.js';
+import { parseArgs, expandInputJson } from './args.js';
 import { pickMode, Output } from './output.js';
 import { version } from './meta.js';
 
 const COMMANDS = {
-  login  : () => import('./commands/login.js'),
-  logout : () => import('./commands/logout.js'),
-  whoami : () => import('./commands/whoami.js'),
+  auth    : () => import('./commands/auth/index.js'),
   init    : () => import('./commands/init.js'),
+  doctor  : () => import('./commands/doctor.js'),
   snippet : () => import('./commands/snippet.js'),
   sites   : () => import('./commands/sites.js'),
-  doctor  : () => import('./commands/doctor.js')
+  whoami  : () => import('./commands/whoami.js')
 };
 
-const HELP = `sqid ${version}  Sqid from the terminal and from coding agents.
+// Short forms people type by habit. `sqid login` is `sqid auth login`.
+const ALIASES = {
+  login   : ['auth', 'login'],
+  signin  : ['auth', 'login'],
+  signup  : ['auth', 'login'],
+  logout  : ['auth', 'logout'],
+  signout : ['auth', 'logout']
+};
 
-Usage: sqid <command> [options]
+export const USAGE = `Usage: sqid [options] [command]
 
-Account
-  login              Sign in or sign up in your browser (--device for SSH/headless, --no-browser to print the URL only)
-  logout             Revoke this machine's token and forget it
-  whoami             Who is signed in, which account, which credentials are present
+Sqid CLI
 
-Site
-  init               Create a site for this project, write .sqid.json, print the snippet (--name, --url)
-  snippet            Print the install snippet for the site
-  sites list         List the sites on this account
-  doctor             Check sign-in, plan, site, snippet in project, deployed, connected, webhooks
+Options:
+  -h, --help           Display help for command
+  --input-json <json>  Pass command options as a JSON string, @file.json, or -
+                       for stdin
+  --json               Emit JSON on stdout (default when stdout is not a TTY)
+  --mode <mode>        Force interaction mode (human or agent). Also settable
+                       via the SQID_MODE environment variable. Defaults to
+                       agent when run without a TTY.
+  --site <id|name>     Which site a command acts on (default: .sqid.json, or
+                       the only site)
+  -v, --version        Output the version number
+  --verbose            Show detailed output (enables debug messages)
+  --yes                Confirm destructive commands without a prompt
 
-Global options
-  --json             Machine-readable output (default when stdout is not a terminal)
-  --mode agent|human Force a mode (also SQID_MODE)
-  --api <url>        API origin (default https://app.sqid.dev, also SQID_API)
-  --yes              Confirm destructive commands without a prompt
-  --help, -h         This help
-  --version, -v      Version
+Commands:
+  auth                                            Manage authentication (login, logout, status)
+  doctor           [options]                      Check this project's Sqid integration health
+  help             [command]                      Display help for command
+  init             [options]                      Create a site for this project and print the snippet
+  sites                                           List the sites on this account
+  snippet          [options]                      Print the install snippet for the site
+  whoami           [options]                      Show the signed-in person and account
 
-Docs: https://docs.sqid.dev   Full text for agents: https://docs.sqid.dev/llms-full.txt
+Docs: https://docs.sqid.dev   For agents: https://docs.sqid.dev/llms-full.txt
 `;
 
 export async function main(argv){
-  let { command, args, flags } = parseArgs(argv);
-  let mode = pickMode(flags);
-  let out  = new Output(mode);
+  let parsed = parseArgs(argv);
+  let mode   = pickMode(parsed.flags);
+  let out    = new Output(mode);
+  let { command, args, flags } = parsed;
 
+  if(flags.verbose){ process.env.SQID_DEBUG = '1'; }
   if(flags.version || flags.v){ out.text(version); out.json({ version }); return 0; }
-  if(!command || flags.help || flags.h){
-    if(command && COMMANDS[command]){ return runHelp(command, out); }
-    out.text(HELP); out.json({ commands : Object.keys(COMMANDS), help : HELP });
-    return 0;
-  }
+  if(command === 'help'){ command = args.shift() || null; flags.help = true; }
+  if(ALIASES[command]){ let [c, sub] = ALIASES[command]; command = c; args = [sub, ...args]; }
 
+  if(!command){ out.text(USAGE); out.json({ usage : USAGE, commands : Object.keys(COMMANDS) }); return 0; }
   let loader = COMMANDS[command];
   if(!loader){
     return out.fail(usageError(`Unknown command "${command}".`, [{ command : 'sqid --help', description : 'List commands' }]));
   }
+  let mod = await loader();
+  if(flags.help || flags.h){ out.text(mod.help || USAGE); out.json({ command, help : mod.help || USAGE }); return 0; }
 
   try{
-    let mod    = await loader();
+    flags = await expandInputJson(flags);
     let result = await mod.run({ args, flags, mode, out });
     out.result(result);
-    return 0;
+    return process.exitCode || 0;
   }catch(error){
     if(error instanceof CliError){ return out.fail(error); }
-    return out.fail(new CliError('unexpected_error', error?.message || String(error), 'Run again with --debug for the stack.', [], error));
+    return out.fail(new CliError('unexpected_error', error?.message || String(error), 'Run again with --verbose for the stack.', [], error));
   }
-}
-
-async function runHelp(command, out){
-  let mod = await COMMANDS[command]();
-  out.text(mod.help || HELP);
-  out.json({ command, help : mod.help || HELP });
-  return 0;
 }

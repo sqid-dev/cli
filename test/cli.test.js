@@ -110,9 +110,9 @@ test('login (loopback): PKCE + state round trip, exp from the JWT, then logout r
     assert.equal(JSON.parse(again.out).data.signed_in, true, 'second login is a no-op');
 
     let noYes = await runCli(['logout'], { SQID_OAUTH_ISSUER : origin });
-    assert.equal(noYes.code, 2); assert.equal(JSON.parse(noYes.err).error, 'confirm_required');
+    assert.equal(noYes.code, 2); assert.equal(JSON.parse(noYes.err).error.code, 'confirm_required');
 
-    let lo = await runCli(['logout', '--yes'], { SQID_OAUTH_ISSUER : origin });
+    let lo = await runCli(['auth', 'logout', '--yes'], { SQID_OAUTH_ISSUER : origin });
     assert.deepEqual(JSON.parse(lo.out).data, { signed_out : true, revoked : true });
     assert.equal(seen.revoked, true);
   } finally { server.close(); }
@@ -121,8 +121,33 @@ test('login (loopback): PKCE + state round trip, exp from the JWT, then logout r
 test('agent mode: not signed in is exit 3 with a remedy; unknown command is exit 2', async () => {
   let w = await runCli(['whoami']);
   assert.equal(w.code, 3);
-  assert.equal(JSON.parse(w.err).error, 'not_signed_in');
+  assert.equal(JSON.parse(w.err).error.code, 'not_signed_in');
   let x = await runCli(['nope']);
   assert.equal(x.code, 2);
-  assert.equal(JSON.parse(x.err).error, 'usage');
+  assert.equal(JSON.parse(x.err).error.code, 'usage');
+});
+
+test('--input-json: flat object becomes flags, explicit flags win, nested refused', async () => {
+  let r = await runCli(['init', '--input-json', '{"url":"https://a.test","siteName":"X","yes":false}', '--url', 'https://b.test']);
+  // not signed in -> exit 3, but flags were parsed first: a bad JSON would have been exit 2
+  assert.equal(r.code, 3);
+  let bad = await runCli(['init', '--input-json', '{"a":{"b":1}}']);
+  assert.equal(bad.code, 2); assert.equal(JSON.parse(bad.err).error.code, 'invalid_json');
+});
+
+test('help: top-level usage, command help, aliases', async () => {
+  let h = await runCli(['--help'], { SQID_MODE : 'human' });
+  assert.match(h.out, /^Usage: sqid \[options\] \[command\]/);
+  let a = await runCli(['help', 'auth'], { SQID_MODE : 'human' });
+  assert.match(a.out, /sqid auth <command>/);
+  let st = await runCli(['auth', 'status']);
+  assert.equal(JSON.parse(st.out).data.signed_in, false);
+});
+
+test('README usage block matches src/index.js USAGE', async () => {
+  const { USAGE } = await import('../src/index.js');
+  let readme = await fs.readFile(new URL('../README.md', import.meta.url), 'utf8');
+  let block = readme.split('## Usage\n\n```\n')[1].split('```')[0];
+  let usage = USAGE.replace(/\n\nDocs:.*\n$/, '\n');
+  assert.equal(block, usage);
 });
