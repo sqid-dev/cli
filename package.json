@@ -4,13 +4,31 @@
   "description": "Sqid from the terminal and from coding agents: sign in with your browser, create sites, receive visitor identifications and moments, manage billing.",
   "license": "MIT",
   "type": "module",
-  "bin": { "sqid": "bin/sqid.js" },
-  "files": ["bin", "src", "skill", "README.md"],
-  "engines": { "node": ">=18.17" },
+  "bin": {
+    "sqid": "bin/sqid.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "skill",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
   "scripts": {
     "test": "node --test test/*.test.js"
   },
-  "repository": { "type": "git", "url": "https://github.com/sqid-dev/cli.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sqid-dev/cli.git"
+  },
   "homepage": "https://docs.sqid.dev",
-  "keywords": ["sqid", "visitor identification", "cli", "claude code", "agent"]
+  "keywords": [
+    "sqid",
+    "visitor identification",
+    "cli",
+    "claude code",
+    "agent"
+  ]
 }
