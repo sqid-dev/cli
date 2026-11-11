@@ -75,18 +75,21 @@ Options:
 Commands:
   auth                                            Manage authentication (login, logout, status)
   doctor           [options]                      Check this project's Sqid integration health
+  enrich           [options]                      Look a person up by email, phone or LinkedIn URL
   help             [command]                      Display help for command
   init             [options]                      Create a site for this project and print the snippet
+  keys                                            SDK keys for the site (the REST visitor API)
   sites                                           List the sites on this account
   skill                                           Install the Claude Code skill for this CLI globally
   snippet          [options]                      Print the install snippet for the site
+  visitors                                        Identified visitors: list, get, journey, key-events, scores
   webhook                                         Endpoints that receive identified visitors, moments, pages, clicks
   whoami           [options]                      Show the signed-in person and account
 ```
 
 `sqid login` and `sqid logout` are shorthands for `sqid auth login` and `sqid auth logout`.
 
-Coming next, in this order: `visitors` and `enrich`, `signals` and `moments`,
+Coming next, in this order: `signals` and `moments`,
 `billing`, `plan`, `packs`, `cap`, `usage`, `logs`, `open`, `feedback`, `telemetry`,
 `update`, `completion`, `mcp`.
 

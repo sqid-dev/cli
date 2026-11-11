@@ -235,3 +235,57 @@ test('skill: SKILL.md leads with identification before moments and names only co
   let known = new Set(USAGE.split('Commands:')[1].split('\n').map(l => l.trim().split(/\s+/)[0]).filter(Boolean));
   for(let m of md.matchAll(/`sqid ([a-z]+)/g)){ assert.ok(known.has(m[1]) || m[1] === 'skill', `SKILL.md names unknown command: sqid ${m[1]}`); }
 });
+
+test('visitors + enrich + keys: identities list, profile get, SDK key minted once and reused for the public API', async () => {
+  let seen = [];
+  let keys = [];
+  let pub = http.createServer(async (req, res) => { let b = ''; for await (let c of req){ b += c; } seen.push({ pub : true, path : req.url, auth : req.headers.authorization, body : JSON.parse(b || 'null') }); res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ person : { name : 'Jane' } })); });
+  await new Promise(r => pub.listen(0, '127.0.0.1', r));
+  let server = http.createServer(async (req, res) => {
+    let b = ''; for await (let c of req){ b += c; }
+    let u = new URL(req.url, 'http://x'); seen.push({ method : req.method, path : u.pathname, query : Object.fromEntries(u.searchParams), body : b ? JSON.parse(b) : null });
+    res.setHeader('content-type', 'application/json');
+    if(u.pathname === '/api/sqid/projects'){ return res.end(JSON.stringify([{ _id : 'sdk1', name : 'Acme', state : {} }])); }
+    if(u.pathname === '/api/sqid/identities'){ return res.end(JSON.stringify({ identities : [{ _id : 'p1', sdk_id : 'sdk1', user : { firstName : 'Jane', lastName : 'Park', email : 'jane@northwind.test', company : 'Northwind' }, last_seen_at : '2026-11-11T10:00:00Z' }], next : { before : 1, seen : ['p1'] } })); }
+    if(u.pathname === '/api/projects/sdk1/profiles/p1'){ return res.end(JSON.stringify({ _id : 'p1', user : { email : 'jane@northwind.test' } })); }
+    if(u.pathname === '/api/sdks/sdk1/tokens' && req.method === 'GET'){ return res.end(JSON.stringify(keys)); }
+    if(u.pathname === '/api/sdks/sdk1/tokens' && req.method === 'POST'){ let k = { _id : 'k1', name : JSON.parse(b).name, jwt : 'sdkjwt.' + keys.length }; keys.push(k); return res.end(JSON.stringify(k)); }
+    res.statusCode = 404; res.end('{}');
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  let cfg = await fs.mkdtemp(path.join(os.tmpdir(), 'sqid-cfg-'));
+  await fs.writeFile(path.join(cfg, 'credentials.json'), JSON.stringify({ access_token : 'oat', refresh_token : 'r', expires_at : Date.now() + 86400e3 }));
+  let env = { SQID_API : `http://127.0.0.1:${server.address().port}`, SQID_PUBLIC_API : `http://127.0.0.1:${pub.address().port}`, SQID_CONFIG_DIR : cfg, SQID_TOKEN : '' };
+  try{
+    let l = await runCli(['visitors', 'list', '--search', 'nor'], env);
+    assert.equal(l.code, 0, l.err);
+    let d = JSON.parse(l.out);
+    assert.equal(d.data.visitors[0].email, 'jane@northwind.test');
+    assert.equal(d.data.visitors[0].site, 'Acme');
+    assert.deepEqual(seen.find(r => r.path === '/api/sqid/identities').query, { sdk : 'sdk1', q : 'nor' });
+    assert.match(d.next[0].command, /--before 1 --seen p1/);
+    let short = await runCli(['visitors', 'list', '--search', 'no'], env);
+    assert.equal(short.code, 2);
+
+    let g = await runCli(['visitors', 'get', 'p1'], env);
+    assert.equal(JSON.parse(g.out).data.user.email, 'jane@northwind.test');
+
+    let e1 = await runCli(['enrich', '--email', 'jane@northwind.test'], env);
+    assert.equal(e1.code, 0, e1.err);
+    assert.equal(JSON.parse(e1.out).data.person.name, 'Jane');
+    let e2 = await runCli(['enrich', '--linkedin', 'https://www.linkedin.com/in/jane', '--force'], env);
+    assert.equal(e2.code, 0, e2.err);
+    assert.equal(seen.filter(r => r.method === 'POST' && r.path === '/api/sdks/sdk1/tokens').length, 1, 'one key minted, then reused from the credentials file');
+    let pubCalls = seen.filter(r => r.pub);
+    assert.equal(pubCalls.length, 2);
+    assert.equal(pubCalls[0].auth, 'Bearer sdkjwt.0');
+    assert.deepEqual(pubCalls[1].body, { linkedin_url : 'https://www.linkedin.com/in/jane', forceUpdate : true });
+    let saved = JSON.parse(await fs.readFile(path.join(cfg, 'credentials.json'), 'utf8'));
+    assert.equal(saved.sdk_keys.sdk1, 'sdkjwt.0');
+
+    let both = await runCli(['enrich', '--email', 'a@b.c', '--phone', '+1'], env);
+    assert.equal(both.code, 2);
+    let kl = await runCli(['keys', 'list'], env);
+    assert.equal(JSON.parse(kl.out).data[0].key, 'sdkjwt.0');
+  } finally { server.close(); pub.close(); }
+});

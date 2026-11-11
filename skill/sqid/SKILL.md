@@ -67,9 +67,18 @@ Endpoints must be public https, so a localhost handler cannot receive deliveries
 Use `sqid webhook preview` to build and unit-test the handler, then a tunnel (the user's
 choice) or the deployed URL for `webhook test`. See `references/local-testing.md`.
 
-**Billing, plan, credits, usage, visitors list, enrichment**
-Not in this CLI version yet. Say so, and point at the console https://app.sqid.dev for
-billing and at https://docs.sqid.dev/api-reference for the REST API (account keys).
+**"Who has been on the site?" / "find visitors from <company>" (on demand, no webhook)**
+`sqid visitors list --json` (newest identified first; `--search acme` matches name, company
+or email prefixes; `--all-sites`). `sqid visitors get <id> --json` for the full profile,
+`journey`, `key-events`, `scores` for what they did. Ids match webhook `visitor.id`.
+
+**"Enrich this email / phone / LinkedIn"**
+`sqid enrich --email jane@acme.com --json` (or `--phone`, `--linkedin`). The first run
+creates an SDK key for the site named "CLI on <hostname>". For the user's own backend,
+`sqid keys create --name Production` and the REST API https://docs.sqid.dev/api-reference.
+
+**Billing, plan, credits, usage**
+Not in this CLI version yet. Say so and point at the console https://app.sqid.dev.
 
 ## Output format when you finish a setup
 
