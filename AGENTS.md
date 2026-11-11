@@ -5,7 +5,8 @@ Conventions for anyone (person or agent) changing this repo.
 ## Shape
 
 Plain Node (18.17+), ES modules, **no runtime dependencies**. One package, no
-build step, no TypeScript. `bin/sqid.js` calls `main()` in `src/index.js`.
+build step, no TypeScript. Published as `@sqid-dev/sqid`; `alias/` is the unscoped `sqid`
+package that depends on it and re-exposes the command (publish both, same version). `bin/sqid.js` calls `main()` in `src/index.js`.
 
 - `src/index.js` — argv in, command out. Holds the `USAGE` text and the alias table.
 - `src/args.js` — flag parsing and `--input-json`.
