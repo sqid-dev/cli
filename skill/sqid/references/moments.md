@@ -33,8 +33,9 @@ Exact shape for this site: `sqid webhook preview --event moment --json`. The rec
 
 ## Fields to switch on
 
-- `data.moment.kind`: `deliberation`, `high_intent_page`, `cart_stall`, `struggle`,
-  `form_stall`, `churn_shape`, `other` (fixed set; `group` is buying, friction, churn, other).
+- `data.moment.kind`: `deliberation`, `high_intent_page`, `choosing_options`, `discount_codes`,
+  `cart_stall`, `struggle`, `form_stall`, `churn_shape`, `settled_attention`, `other` (fixed set;
+  `group` is buying, friction, churn, attention, other).
 - `data.moment.decision.action`: `engage` (step in now; `mode` sales|support|retention,
   `tier` nudge|assist, `instruction` is a line written for an agent), `wait` (forming, do
   nothing visible), `quiet` (considered, stayed out).
@@ -65,6 +66,7 @@ export async function POST(req: Request) {
 }
 ```
 
-Signals must be on for the site; if `webhook preview --event moment` or the console says
-it is off, tell the user it is enabled per site in the console (CLI `signals on` comes later).
+Signals must be on for the site: `sqid signals on`. Sandbox sites never produce moments.
+The same moment also reaches the page as the `visitor.moment` engine event (see browser.md)
+when the user wants to react in their own UI instead of through an agent.
 Guide: https://docs.sqid.dev/guides/signals.md
