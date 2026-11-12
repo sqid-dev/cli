@@ -19,6 +19,7 @@ const COMMANDS = {
   logs    : () => import('./commands/logs.js'),
   moments : () => import('./commands/moments.js'),
   plan    : () => import('./commands/plan.js'),
+  playground : () => import('./commands/playground.js'),
   signals : () => import('./commands/signals.js'),
   snippet : () => import('./commands/snippet.js'),
   usage   : () => import('./commands/usage.js'),
@@ -68,6 +69,7 @@ Commands:
   logs                                            API calls and webhook deliveries
   moments                                         What Signals decided: list, get, tail
   plan                                            Show or change the plan; buy OEM credit packs
+  playground       [options]                      Run the demo site with the Sqid panel (Sandbox, no credits)
   signals                                         Signals on, off or status for the site
   sites                                           List the sites on this account
   skill                                           Install the Claude Code skill for this CLI globally

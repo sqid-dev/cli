@@ -38,6 +38,9 @@ on Sqid is thin or stale: prefer the CLI's own output (`--json`, `webhook previe
 4. Ask which outcome they want, offering these in this order: know who is visiting
    (identification webhook), see visitors on demand, send moments to an agent, personalize
    the page in the browser. Do not assume moments.
+   No website yet, or they want to see it work first: `sqid playground` runs a demo site
+   (Driftwood) on localhost with a Sqid panel; the Sandbox identifies every visitor with a
+   made-up person and spends no credits. Open it for them and point at the panel's Start tab.
 5. Finish with `sqid doctor --json` and report the five lines in the output format below.
 
 **"Tell me who is on my site" / de-anonymize / identify visitors / lead capture**

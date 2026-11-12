@@ -1,7 +1,7 @@
 // Tiny argv parser: first bare word is the command, the rest are positional args;
 // --flag, --flag value, --flag=value, --no-flag, -h. No dependency.
 
-const TAKES_VALUE = new Set(['mode', 'api', 'site', 'input-json', 'name', 'url', 'event', 'auth', 'role', 'search', 'custom-id', 'email', 'phone', 'linkedin', 'decision', 'kind', 'limit', 'before', 'seen', 'month', 'endpoint', 'threshold', 'amount', 'threshold-credits', 'pack', 'account', 'agent']);
+const TAKES_VALUE = new Set(['mode', 'api', 'site', 'input-json', 'name', 'url', 'event', 'auth', 'role', 'search', 'custom-id', 'email', 'phone', 'linkedin', 'decision', 'kind', 'limit', 'before', 'seen', 'month', 'endpoint', 'threshold', 'amount', 'threshold-credits', 'pack', 'account', 'agent', 'port']);
 
 export function parseArgs(argv){
   let command = null, args = [], flags = {};
