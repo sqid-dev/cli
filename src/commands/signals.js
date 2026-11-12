@@ -6,8 +6,9 @@ import { resolveSite } from '../project.js';
 export const help = `Usage: sqid signals <on|off|status>
 
 Signals watches behaviour on the site and emits moments (see sqid moments, and
-webhook --event moment). Per site. An admin lock or the account's allowance can
-override the switch; status shows the effective state.
+webhook --event moment). Per site. On also starts variant-picker tracking in the
+SDK (sizes, colors, plans), which feeds the choosing_options moment. An admin lock
+or the account's allowance can override the switch; status shows the effective state.
 `;
 
 export async function run({ args, flags }){
