@@ -1,6 +1,6 @@
 {
   "name": "@sqid-dev/sqid",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Sqid from the terminal and from coding agents: sign in with your browser, create sites, receive visitor identifications and moments, manage billing.",
   "license": "MIT",
   "type": "module",
