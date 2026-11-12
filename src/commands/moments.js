@@ -11,8 +11,9 @@ Commands:
   get <id>
   tail [--decision engage]        Follow new moments as they arrive (NDJSON in agent mode)
 
-Kinds: deliberation, high_intent_page, cart_stall, struggle, form_stall, churn_shape, other.
-Groups: buying, friction, churn, other.
+Kinds: deliberation, high_intent_page, choosing_options, discount_codes, cart_stall,
+       struggle, form_stall, churn_shape, settled_attention, other.
+Groups: buying, friction, churn, attention, other.
 `;
 
 function qs(flags, site){
