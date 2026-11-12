@@ -1,6 +1,6 @@
 // Webhooks: where Sqid sends what it learns. The first thing most people want is
 // de-anonymisation, so `webhook add <url>` defaults to the identification event
-// (the full v2 record). Moments, page views and clicks are the other events.
+// (the full v2 record). Moments, site visits by identified visitors and labelled clicks are the other events.
 //
 // Writes go through the console's own routes with the OAuth token (v2 events
 // have their own base path); reads come from /api/sqid/... which never returns
@@ -13,8 +13,8 @@ import { resolveSite } from '../project.js';
 export const EVENTS = {
   identification      : { namespace : 'visitor.identification.created.v2', v2 : true,  label : 'Visitor identified',       help : 'A visitor is identified. Sends the full record: person, company, job, location, social, device.' },
   moment              : { namespace : 'visitor.moment.created.v2',         v2 : true,  label : 'Intent moment',            help : 'A Signals moment is decided for a visitor: kind, decision (engage, wait, quiet), why, page, session.' },
-  page                : { namespace : 'visitor.connection.event',          v2 : false, label : 'Visitor connected',        help : 'A visitor opens your site (page, location, device).' },
-  click               : { namespace : 'visitor.click.event',               v2 : false, label : 'Visitor clicked',          help : 'A visitor clicks a tracked element.' },
+  page                : { namespace : 'visitor.connection.event',          v2 : false, label : 'Visitor connected',        help : 'An identified visitor opens your site (page, location, device).' },
+  click               : { namespace : 'visitor.click.event',               v2 : false, label : 'Visitor clicked',          help : 'An identified visitor clicks an element labelled as a key event or a conversion.' },
   'identification-v1' : { namespace : 'visitor.identification.created',    v2 : false, label : 'Visitor identified (v1)',  help : 'The older, section-based identification payload.' }
 };
 const BY_NAMESPACE = Object.fromEntries(Object.entries(EVENTS).map(([k, e]) => [e.namespace, { key : k, ...e }]));
