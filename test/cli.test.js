@@ -326,9 +326,10 @@ test('signals, moments, billing, plan, cap, usage, logs: routes, bodies, guards'
     assert.equal(JSON.parse((await runCli(['moments', 'get', 'm1'], env)).out).data.kind, 'form_stall');
     let bs = JSON.parse((await runCli(['billing', 'status'], env)).out).data;
     assert.deepEqual(bs.card, { brand : 'visa', last4 : '4242' }); assert.equal(bs.usage.first, 3);
-    await runCli(['billing', 'topup', '20'], env); assert.deepEqual(last('/api/sqid/billing/topup', 'POST').body, { amount_cents : 2000 });
+    await runCli(['billing', 'topup', '20'], env); { let tb = last('/api/sqid/billing/topup', 'POST').body; assert.equal(tb.credits, 80, '$20 is 80 credits at $0.25'); assert.match(tb.request_id, /^cli-/); }
     assert.equal((await runCli(['billing', 'topup', '2'], env)).code, 2, 'below $5 is a usage error');
-    await runCli(['billing', 'auto-reload', 'on', '--threshold', '10', '--amount', '50'], env); assert.deepEqual(last('/api/sqid/billing/auto-reload', 'PUT').body, { enabled : true, threshold_cents : 1000, amount_cents : 5000 });
+    await runCli(['billing', 'auto-reload', 'on', '--threshold', '10', '--target', '50'], env); assert.deepEqual(last('/api/sqid/billing/auto-reload', 'PUT').body, { enabled : true, below : 40, target : 200 });
+    assert.equal((await runCli(['billing', 'auto-reload', 'on', '--threshold', '10', '--target', '15'], env)).code, 2, 'target must be $10 above the threshold');
     let noTerms = await runCli(['plan', 'set', 'oem'], env); assert.equal(noTerms.code, 2); assert.equal(JSON.parse(noTerms.err).error.code, 'terms_required');
     assert.equal(seen.filter(r => r.path === '/api/sqid/billing/plan').length, 0, 'no call without --accept-terms');
     let noCard = await runCli(['plan', 'set', 'oem', '--accept-terms'], env); assert.equal(JSON.parse(noCard.err).error.code, 'no_card'); assert.equal(JSON.parse(noCard.err).error.examples[0].command, 'sqid billing card');

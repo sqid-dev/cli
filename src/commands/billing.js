@@ -11,8 +11,10 @@ export const help = `Usage: sqid billing <command>
 Commands:
   status                                   Plan, card, balance, allowance, auto-reload, this month's usage
   card [--no-browser]                      Add or change the card in your browser; waits until it is saved
-  topup <usd>                              Charge the saved card and add credit (Developer plan; min $5)
-  auto-reload on --threshold <usd> --amount <usd> | on --threshold-credits <n> --pack <n> | off
+  topup <usd>                              Developer: add credits on the saved card ($5 to $10,000; $0.25 a credit)
+  auto-reload on --threshold <usd> --target <usd>   Developer: at $threshold, refill the balance to $target
+  auto-reload on --threshold-credits <n> --pack <n> OEM Launch: at n credits, buy the pack
+  auto-reload off
   invoices                                 Recent invoices
 `;
 
@@ -27,10 +29,12 @@ export async function run({ args, flags, out, mode }){
   if(sub === 'status'){
     let [overview, account, usage] = await Promise.all([api('GET', `/api/sqid/billing${q}`, { flags }), api('GET', `/api/sqid/billing/account${q}`, { flags }).catch(() => null), api('GET', `/api/sqid/billing/usage${q}`, { flags }).catch(() => null)]);
     let card = (overview?.cards || []).find(c => c.default) || overview?.cards?.[0] || account?.card || null;
-    let data = { plan : overview?.plan ?? account?.plan ?? null, card : card ? { brand : card.brand, last4 : card.last4 } : null, balance : account?.balance ?? null, paused : account?.paused ?? null, payment_issue : account?.payment_issue ?? null, auto_reload : account?.auto_reload ?? null, oem : account?.oem ?? null, usage : usage?.identifications?.totals ? { month : usage.month, ...usage.identifications.totals } : null, raw : { overview, account, usage } };
+    let cr = account?.credits || null;   // Developer: credits in the billing micro
+    let credits = cr ? { available : cr.available, unlimited : cr.unlimited, dollars : cr.available == null ? null : usd(cr.available * cr.cents_per_credit), next_expiry : cr.next_expiry, auto_reload : cr.auto_reload } : null;
+    let data = { plan : overview?.plan ?? account?.plan ?? null, card : card ? { brand : card.brand, last4 : card.last4 } : null, credits, balance : cr ? null : account?.balance ?? null, paused : account?.paused ?? null, payment_issue : account?.payment_issue ?? null, auto_reload : cr ? cr.auto_reload : account?.auto_reload ?? null, oem : account?.oem ?? null, usage : usage?.identifications?.totals ? { month : usage.month, ...usage.identifications.totals } : null, raw : { overview, account, usage } };
     return {
       data,
-      text : [`Plan: ${planLine(data.plan)}`, `Card: ${card ? `${card.brand} •••• ${card.last4}` : 'none on file'}`, data.balance != null ? `Balance: ${typeof data.balance === 'object' ? JSON.stringify(data.balance) : data.balance}` : null, data.usage ? `This month: ${data.usage.first} first identifications, ${data.usage.returning} returning, ${data.usage.plus} plus` : null, data.payment_issue ? `Payment issue: ${JSON.stringify(data.payment_issue)}` : null].filter(Boolean).join('\n'),
+      text : [`Plan: ${planLine(data.plan)}`, `Card: ${card ? `${card.brand} •••• ${card.last4}` : 'none on file'}`, credits ? (credits.unlimited ? 'Credits: unlimited' : `Credits: ${credits.available} (${credits.dollars})${credits.next_expiry ? `, ${credits.next_expiry.credits} expire ${String(credits.next_expiry.at).slice(0, 10)}` : ''}`) : null, credits?.auto_reload?.enabled ? `Auto-reload: at ${usd(credits.auto_reload.below * 25)}, refill to ${usd(credits.auto_reload.target * 25)}` : null, data.balance != null ? `Balance: ${typeof data.balance === 'object' ? JSON.stringify(data.balance) : data.balance}` : null, data.usage ? `This month: ${data.usage.first} first identifications, ${data.usage.returning} returning, ${data.usage.plus} plus` : null, data.payment_issue ? `Payment issue: ${JSON.stringify(data.payment_issue)}` : null].filter(Boolean).join('\n'),
       next : card ? [] : [{ command : 'sqid billing card', when : 'to add a card in the browser' }]
     };
   }
@@ -54,16 +58,29 @@ export async function run({ args, flags, out, mode }){
 
   if(sub === 'topup'){
     let amount = Number(args[1]);
-    if(!(amount >= 5)){ throw usageError('topup needs an amount in dollars, at least 5.', [{ command : 'sqid billing topup 20', description : 'Add $20 of credit' }]); }
-    let r = await api('POST', `/api/sqid/billing/topup${q}`, { flags, body : { amount_cents : Math.round(amount * 100) } });
-    return { data : r, text : `Top-up of ${usd(Math.round(amount * 100))} submitted.`, next : [{ command : 'sqid billing status', when : 'to see the balance once the payment settles' }] };
+    if(!Number.isInteger(amount) || amount < 5 || amount > 10000){ throw usageError('topup needs a whole number of dollars, 5 to 10000.', [{ command : 'sqid billing topup 25', description : 'Add $25 (100 credits)' }]); }
+    let credits = amount * 4;   // $0.25 a credit
+    let request_id = `cli-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    let r = await api('POST', `/api/sqid/billing/topup${q}`, { flags, body : { credits, request_id } });
+    if(r?.status === 'requires_action'){
+      let url = `${(flags.api || API_ORIGIN)}/billing`;
+      return { data : r, text : `Your bank wants to confirm this ${usd(amount * 100)} payment. Finish it in the console: ${url}`, next : [{ command : 'sqid billing status', when : 'after confirming in the console' }] };
+    }
+    if(!r?.credited){ throw new CliError('charge_failed', r?.reason || 'The card was declined.', 'Update the card with `sqid billing card`, then try again.', [{ command : 'sqid billing card', description : 'Change the card' }]); }
+    return { data : r, text : `Added ${credits} credits (${usd(amount * 100)}). A receipt is in \`sqid billing invoices\`.`, next : [{ command : 'sqid billing status', when : 'to see the balance' }] };
   }
 
   if(sub === 'auto-reload'){
     let state = args[1];
     if(state === 'off'){ let r = await api('PUT', `/api/sqid/billing/auto-reload${q}`, { flags, body : { enabled : false } }); return { data : r, text : 'Auto-reload off.' }; }
-    if(state !== 'on'){ throw usageError('auto-reload on|off', [{ command : 'sqid billing auto-reload on --threshold 10 --amount 50', description : 'Developer: when balance falls to $10, add $50' }, { command : 'sqid billing auto-reload on --threshold-credits 100 --pack 1000', description : 'OEM: when credits fall to 100, buy the 1000 pack' }]); }
-    let body = flags['threshold-credits'] ? { enabled : true, threshold_credits : Number(flags['threshold-credits']), pack : Number(flags.pack) } : { enabled : true, threshold_cents : Math.round(Number(flags.threshold) * 100), amount_cents : Math.round(Number(flags.amount) * 100) };
+    if(state !== 'on'){ throw usageError('auto-reload on|off', [{ command : 'sqid billing auto-reload on --threshold 5 --target 25', description : 'Developer: when the balance falls to $5, refill it to $25' }, { command : 'sqid billing auto-reload on --threshold-credits 100 --pack 1000', description : 'OEM: when credits fall to 100, buy the 1000 pack' }]); }
+    let body;
+    if(flags['threshold-credits']){ body = { enabled : true, threshold_credits : Number(flags['threshold-credits']), pack : Number(flags.pack) }; }
+    else {
+      let at = Number(flags.threshold), to = Number(flags.target);
+      if(!Number.isInteger(at) || at < 5 || !Number.isInteger(to) || to < at + 10){ throw usageError('Developer auto-reload needs --threshold <usd> (5 or more) and --target <usd> (at least 10 more).', [{ command : 'sqid billing auto-reload on --threshold 5 --target 25', description : 'At $5, refill to $25' }]); }
+      body = { enabled : true, below : at * 4, target : to * 4 };   // credits at $0.25
+    }
     let r = await api('PUT', `/api/sqid/billing/auto-reload${q}`, { flags, body });
     return { data : r, text : 'Auto-reload on.' };
   }
