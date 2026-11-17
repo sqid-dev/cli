@@ -37,6 +37,9 @@ export async function publicApi(method, path, { key, body } = {}){
     headers : { authorization : `Bearer ${key}`, accept : 'application/json', 'user-agent' : 'sqid-cli', ...(body ? { 'content-type' : 'application/json' } : {}) },
     body    : body ? JSON.stringify(body) : undefined
   });
-  let data = null; try{ data = await res.json(); }catch(error){ /* not json */ }
-  return { ok : res.ok, status : res.status, data };
+  // The public API answers errors as plain text (400 "Not enough credits") and some as JSON (429
+  // {"message":"Rate limit exceeded"}); read text, then try JSON. text is the body as sent.
+  let text = await res.text().catch(() => '');
+  let data = null; try{ data = text ? JSON.parse(text) : null; }catch(error){ data = null; }
+  return { ok : res.ok, status : res.status, data, text };
 }

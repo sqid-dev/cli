@@ -37,7 +37,7 @@ Commands:
   list                                                             Endpoints on the site, with health
   get <id>                                                         One endpoint
   preview [--event <event>]                                        A sample payload for an event (nothing is sent)
-  test <id>                                                        Send a sample delivery now and show the response
+  test <id>                                                        Send a sample delivery now and show the response (not logged in deliveries)
   enable <id> | disable <id>                                       Turn an endpoint on or off
   deliveries <id> [--failed] [--limit <n>]                         Recent deliveries (request and response)
   retry <id> <event_id>                                            Re-send one delivery
@@ -133,11 +133,15 @@ export async function run({ args, flags, mode }){
   if(sub === 'test'){
     let { w, ev } = await find(site, rest[0], flags);
     let r = await api('POST', `${base(site, ev)}/webhook/test`, { flags, body : { webhook_id : w.id } });
-    let ok = !!r?.response?.success;
+    // The webhook micro answers a test with the delivery itself: { success, status, data } (older builds wrapped it in response).
+    let ok = !!(r?.success ?? r?.response?.success);
+    let status = r?.status ?? r?.response?.status ?? null;
+    let body = r && 'data' in r ? r.data : r?.response?.data;
     return {
-      data : { delivered : ok, status : r?.response?.status ?? null, request : r?.request?.payload, response : r?.response?.data },
-      text : `${ok ? 'Delivered' : 'Failed'}${r?.response?.status ? ` · HTTP ${r.response.status}` : ' · no response'}\n${typeof r?.response?.data === 'string' ? r.response.data.slice(0, 500) : JSON.stringify(r?.response?.data ?? null, null, 2)}`,
-      next : ok ? [{ command : 'sqid doctor', when : 'to confirm the stream is live' }] : [{ command : `sqid webhook deliveries ${w.id} --failed`, when : 'to see what your endpoint returned' }]
+      data : { delivered : ok, status, response : body ?? null },
+      text : `${ok ? 'Delivered' : 'Failed'}${status ? ` · HTTP ${status}` : ' · no response'}\n${typeof body === 'string' ? body.slice(0, 500) : JSON.stringify(body ?? null, null, 2)}`,
+      // Test sends are not logged under deliveries; the answer above is all there is.
+      next : ok ? [{ command : 'sqid doctor', when : 'to confirm the stream is live' }] : [{ command : `sqid webhook preview --event ${BY_NAMESPACE[w.namespace]?.key || 'identification'}`, when : 'to check the handler accepts this payload shape' }, { command : `sqid webhook test ${w.id}`, when : 'again after fixing the endpoint' }]
     };
   }
 

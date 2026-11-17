@@ -90,7 +90,7 @@ Commands:
   plan                                            Show or change the plan; buy OEM credit packs
   playground       [options]                      Run the demo site with the Sqid panel (Sandbox, no credits)
   signals                                         Signals on, off or status for the site
-  sites                                           List the sites on this account
+  sites                                           List sites; allowed origins (localhost on the Sandbox)
   skill                                           Install the Claude Code skill for this CLI globally
   snippet          [options]                      Print the install snippet for the site
   usage            [options]                      Identifications billed this month, per site

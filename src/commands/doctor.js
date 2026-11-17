@@ -61,7 +61,7 @@ export async function run({ flags }){
   try{
     let hooks = await api('GET', `/api/sqid/sdks/${site.id}/webhooks`, { flags });
     let list = Array.isArray(hooks) ? hooks : hooks?.webhooks || [];
-    let failing = list.filter(h => h.enabled === false || h.health === 'failing' || h.disabled_reason);
+    let failing = list.filter(h => h.enabled === false || (h.health?.status ?? h.health) === 'failing' || h.disabled_reason);
     if(!list.length){ add('webhooks', 'warn', 'No webhooks yet; identified visitors are not being sent anywhere.', 'Add one.', 'sqid webhook add https://<your-app>/api/visitors'); }
     else if(failing.length){ add('webhooks', 'fail', `${failing.length} of ${list.length} webhooks disabled or failing.`, 'Check the endpoint and re-enable.', 'sqid webhook list'); }
     else { add('webhooks', 'ok', `${list.length} webhook${list.length === 1 ? '' : 's'} healthy.`); }

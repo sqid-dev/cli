@@ -36,7 +36,7 @@ export async function run({ args, flags, mode, out }){
     let rows = r?.events || [];
     return {
       data : { moments : rows, next_cursor : r?.next || null, kinds : r?.kinds },
-      text : rows.length ? rows.map(m => `${m.id || m._id}  ${String(m.decision?.action || m.action || '').padEnd(6)}  ${String(m.kind || '').padEnd(16)}  ${m.page || ''}  ${m.person?.name || m.profile?.name || ''}`).join('\n') : 'No moments yet.',
+      text : rows.length ? rows.map(m => `${m.id || m._id}  ${String(m.decision?.action || m.action || '').padEnd(6)}  ${String(m.kind || '').padEnd(16)}  ${m.page || ''}  ${m.visitor?.name || m.visitor?.company || ''}`).join('\n') : 'No moments yet.',
       next : [...(r?.next ? [{ command : `sqid moments list --before ${r.next.before} --seen ${r.next.seen.join(',')}`, when : 'next page' }] : []), ...(rows.length ? [] : [{ command : 'sqid signals status', when : 'to check Signals is on for the site' }])]
     };
   }
@@ -64,7 +64,7 @@ export async function run({ args, flags, mode, out }){
         // The feed says "n new" (and may carry events); fetch the newest page when it only counts.
         let events = obj.events || (obj.event ? [obj.event] : null);
         if(!events){ let r = await api('GET', `/api/sqid/moments?${qs({ ...flags, limit : obj.n || 5 }, site)}`, { flags }); events = r?.events || []; }
-        for(let m of events){ process.stdout.write((mode === 'agent' ? JSON.stringify(m) : `${m.decision?.action || ''}  ${m.kind || ''}  ${m.page || ''}  ${m.person?.name || ''}`) + '\n'); }
+        for(let m of events){ process.stdout.write((mode === 'agent' ? JSON.stringify(m) : `${m.decision?.action || ''}  ${m.kind || ''}  ${m.page || ''}  ${m.visitor?.name || m.visitor?.company || ''}`) + '\n'); }
       }
     }
     return null;

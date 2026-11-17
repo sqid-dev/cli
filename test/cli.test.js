@@ -164,7 +164,7 @@ async function fakeApi(){
     if(u.pathname === '/api/sqid/projects'){ return res.end(JSON.stringify([{ _id : 'sdk1', name : 'Acme', enabled : true, state : { deployed : true, connected : true } }])); }
     if(u.pathname === '/api/sqid/sdks/sdk1/webhooks'){ return res.end(JSON.stringify(hooks)); }
     if(req.method === 'POST' && /\/projects\/sdk1\/webhook$/.test(u.pathname)){ let b = JSON.parse(body); let w = { id : 'wh' + (hooks.length + 1), name : b.name, namespace : b.namespace, enabled : b.enabled, url : b.source.webhook_url, health : { status : 'no_deliveries' }, totals : { success : 0, failed : 0 } }; hooks.push(w); return res.end(JSON.stringify({ _id : w.id })); }
-    if(req.method === 'POST' && /\/webhook\/test$/.test(u.pathname)){ return res.end(JSON.stringify({ request : { payload : { hello : 1 } }, response : { success : true, status : 200, data : 'ok' } })); }
+    if(req.method === 'POST' && /\/webhook\/test$/.test(u.pathname)){ return res.end(JSON.stringify({ success : true, status : 200, data : 'ok' })); }   // the micro's bare answer
     if(req.method === 'DELETE'){ hooks = hooks.filter(h => !u.pathname.endsWith('/' + h.id)); return res.end('{}'); }
     res.statusCode = 404; res.end(JSON.stringify({ error : 'nope' }));
   });
@@ -204,7 +204,7 @@ test('webhook: add defaults to identification (v2 route), page uses v1 with sett
     assert.deepEqual(rows.map(r => r.event), ['identification', 'moment', 'page']);
 
     let t = await runCli(['webhook', 'test', 'wh1'], env);
-    assert.equal(JSON.parse(t.out).data.delivered, true);
+    assert.deepEqual(JSON.parse(t.out).data, { delivered : true, status : 200, response : 'ok' }, 'bare { success, status, data } is read');
     assert.equal(seen.filter(r => r.path.endsWith('/webhook/test')).pop().path, '/api/v2/projects/sdk1/webhook/test');
 
     let d = await runCli(['webhook', 'delete', 'wh3'], env);
@@ -332,9 +332,9 @@ test('signals, moments, billing, plan, cap, usage, logs: routes, bodies, guards'
     assert.equal((await runCli(['billing', 'auto-reload', 'on', '--threshold', '10', '--target', '15'], env)).code, 2, 'target must be $10 above the threshold');
     let noTerms = await runCli(['plan', 'set', 'oem'], env); assert.equal(noTerms.code, 2); assert.equal(JSON.parse(noTerms.err).error.code, 'terms_required');
     assert.equal(seen.filter(r => r.path === '/api/sqid/billing/plan').length, 0, 'no call without --accept-terms');
-    let noCard = await runCli(['plan', 'set', 'oem', '--accept-terms'], env); assert.equal(JSON.parse(noCard.err).error.code, 'no_card'); assert.equal(JSON.parse(noCard.err).error.examples[0].command, 'sqid billing card');
+    let noCard = await runCli(['plan', 'set', 'oem', '--accept-terms'], env); assert.equal(JSON.parse(noCard.err).error.code, 'no_card'); assert.match(last('/api/sqid/billing/plan', 'POST').body.request_id, /^cli-/); assert.equal(JSON.parse(noCard.err).error.examples[0].command, 'sqid billing card');
     let dg = await runCli(['plan', 'set', 'developer'], env); assert.equal(JSON.parse(dg.err).error.code, 'confirm_required');
-    await runCli(['plan', 'packs', 'buy', '5000'], env); assert.deepEqual(last('/api/sqid/billing/packs', 'POST').body, { pack : 5000 });
+    await runCli(['plan', 'packs', 'buy', '5000'], env); { let pb = last('/api/sqid/billing/packs', 'POST').body; assert.equal(pb.pack, 5000); assert.match(pb.request_id, /^cli-[A-Za-z0-9_-]{6,60}$/); }
     assert.equal((await runCli(['plan', 'packs', 'buy', '700'], env)).code, 2);
     await runCli(['cap', 'set', '5000'], env); assert.deepEqual(last('/api/sqid/sdks/sdk1/cap', 'PATCH').body, { cap : 5000 });
     await runCli(['cap', 'off'], env); assert.deepEqual(last('/api/sqid/sdks/sdk1/cap', 'PATCH').body, { cap : null });
@@ -342,4 +342,126 @@ test('signals, moments, billing, plan, cap, usage, logs: routes, bodies, guards'
     await runCli(['logs', 'api', '--failed', '--endpoint', '/visitors/x'], env); assert.deepEqual(last('/api/sqid/api-logs').query, { status : 'failed', endpoint : '/visitors/x' });
     await runCli(['logs', 'webhooks', '--failed'], env); assert.equal(last('/api/sqid/sdks/sdk1/webhook-events').query.status, 'failed');
   } finally { server.close(); }
+});
+
+// The shapes platform2 and sp answer with today (billing/upgrade.js, billing/credits.js, webhooks.limits,
+// projects update, sp visitors.enrichment).
+test('response shapes: OEM plan and packs, OEM billing, cap, doctor health, moments visitor, enrich errors, sites origins', async () => {
+  let seen = [];
+  let state = { plan : 'oem', planStatus : 'paid', packStatus : 'paid', enrich : { status : 200, body : 'false', type : 'application/json' } };
+  const jwtFor = (site, app) => ['h', Buffer.from(JSON.stringify({ sdk_id : 'sb1', site, app })).toString('base64url'), 's'].join('.');
+  let sandboxJwt = jwtFor('https://sandbox.sqid.dev', 'https://sandbox.sqid.dev,https://app.sandbox.test');
+  let pub = http.createServer(async (req, res) => { for await (let c of req){ void c; } res.statusCode = state.enrich.status; res.setHeader('content-type', state.enrich.type); res.end(state.enrich.body); });
+  await new Promise(r => pub.listen(0, '127.0.0.1', r));
+  let server = http.createServer(async (req, res) => {
+    let b = ''; for await (let c of req){ b += c; }
+    let u = new URL(req.url, 'http://x'); seen.push({ method : req.method, path : u.pathname, body : b ? JSON.parse(b) : null });
+    res.setHeader('content-type', 'application/json');
+    let P = u.pathname;
+    if(P === '/api/sqid/me'){ return res.end(JSON.stringify({ email : 'dev@acme.com', account : { hasSubscription : true } })); }
+    if(P === '/api/sqid/projects'){ return res.end(JSON.stringify([{ _id : 'sdk1', name : 'Acme', state : { deployed : true, connected : true } }, { _id : 'sb1', name : 'Sandbox', sandbox : true, state : {} }])); }
+    if(P === '/api/sqid/billing'){ return res.end(JSON.stringify({ plan : { items : [{ name : 'Sqid OEM Launch' }] }, cards : [{ id : 'pm_1', brand : 'visa', last4 : '4242', default : true }] })); }
+    if(P === '/api/sqid/billing/account'){ return res.end(JSON.stringify({ plan : state.plan, credits : { available : 640, unlimited : false, cents_per_credit : 25, plan : { name : state.plan === 'oem' ? 'Sqid OEM Launch' : 'Sqid Developer', kind : state.plan, included_per_month : state.plan === 'oem' ? 500 : 0 }, plan_state : { plan : state.plan, period_end : '2026-12-17T00:00:00Z', downgrade_at : '2026-12-17T00:00:00Z', packs : { credits : 1000, becomes : 800 } }, auto_reload : state.plan === 'oem' ? { enabled : true, below : 100, target : null, pack : 1000 } : { enabled : true, below : 20, target : 100, pack : null } } })); }
+    if(P === '/api/sqid/billing/usage'){ return res.end('{}'); }
+    if(P === '/api/sqid/billing/invoices'){ return res.end(JSON.stringify({ invoices : [{ id : 'in_1', number : 'SQ-1', status : 'paid', total : 67500, created : '2026-11-17T00:00:00.000Z', pdf : 'https://pay.stripe.test/in_1.pdf', receipt : 'https://pay.stripe.test/r' }], has_more : false })); }
+    if(P === '/api/sqid/billing/plan'){ return res.end(JSON.stringify(state.planStatus === 'failed' ? { status : 'failed', reason : 'Your card was declined.' } : state.planStatus === 'requires_action' ? { status : 'requires_action', client_secret : 'pi_x_secret' } : { status : 'paid' })); }
+    if(P === '/api/sqid/billing/packs'){ return res.end(JSON.stringify(state.packStatus === 'failed' ? { credited : false, status : 'failed', reason : 'insufficient funds', credits : 1000, pack : 1000 } : state.packStatus === 'requires_action' ? { credited : false, status : 'requires_action', client_secret : 's', pack : 1000 } : { credited : true, status : 'paid', credits : 1000, pack : 1000 })); }
+    if(P === '/api/sqid/billing/auto-reload'){ return res.end(JSON.stringify({ auto_reload : JSON.parse(b) })); }
+    if(P === '/api/sqid/billing/topup'){ return res.end(JSON.stringify({ credited : true })); }
+    if(P === '/api/sqid/limits'){ return res.end(JSON.stringify({ sdks : [{ id : 'sdk1', name : 'Acme', enabled : true, events : { used : 10, cap : null }, visitorID : { used : 42, cap : 5000 } }] })); }
+    if(P === '/api/sqid/sdks/sdk1/webhooks'){ return res.end(JSON.stringify([{ id : 'wh1', enabled : true, namespace : 'visitor.identification.created.v2', health : { status : 'failing', consecutiveFails : 9 } }])); }
+    if(P === '/api/sqid/moments'){ return res.end(JSON.stringify({ events : [{ id : 'm1', kind : 'form_stall', decision : { action : 'engage' }, page : '/signup', visitor : { id : 'u1', identified : true, name : 'Jane Park', company : 'Northwind' } }], next : null })); }
+    if(P === '/api/sdks/sdk1/tokens'){ return res.end(JSON.stringify(req.method === 'GET' ? [] : { _id : 'k1', jwt : 'sdkjwt' })); }
+    if(P === '/api/projects/sb1' && req.method === 'GET'){ return res.end(JSON.stringify({ _id : 'sb1', name : 'Sandbox', sandbox : true, jwt : sandboxJwt })); }
+    if(P === '/api/projects/sb1' && req.method === 'PATCH'){ let body = JSON.parse(b); sandboxJwt = jwtFor(body.site_origins.join(','), body.product_origins.join(',')); return res.end('{}'); }
+    res.statusCode = 404; res.end(JSON.stringify({ error : 'nf' }));
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  let cfg = await fs.mkdtemp(path.join(os.tmpdir(), 'sqid-cfg-'));
+  let env = { SQID_API : `http://127.0.0.1:${server.address().port}`, SQID_PUBLIC_API : `http://127.0.0.1:${pub.address().port}`, SQID_TOKEN : 'ak', SQID_CONFIG_DIR : cfg };
+  const human = { ...env, SQID_MODE : 'human' };
+  const last = (p, m = 'GET') => seen.filter(r => r.path === p && r.method === m).pop();
+  try{
+    // plan show: credits.plan + credits.plan_state, readable
+    let ps = await runCli(['plan', 'show'], human);
+    assert.equal(ps.code, 0, ps.err);
+    assert.match(ps.out, /Plan: Sqid OEM Launch/); assert.match(ps.out, /Included: 500 identifications a month/);
+    assert.match(ps.out, /Downgrade to Developer scheduled: 2026-12-17/); assert.match(ps.out, /Pack credits: 1000 \(become 800/);
+    assert.doesNotMatch(ps.out, /[{}]/, 'no raw JSON');
+    assert.equal(JSON.parse((await runCli(['plan', 'show'], env)).out).data.plan, 'oem');
+
+    // plan set oem: request_id + status branches
+    state.plan = 'developer';
+    let up = await runCli(['plan', 'set', 'oem', '--accept-terms'], env);
+    assert.equal(up.code, 0, up.err); assert.match(last('/api/sqid/billing/plan', 'POST').body.request_id, /^[A-Za-z0-9_-]{8,64}$/);
+    state.planStatus = 'failed';
+    let dec = await runCli(['plan', 'set', 'oem', '--accept-terms'], env);
+    assert.equal(dec.code, 1); assert.equal(JSON.parse(dec.err).error.code, 'charge_failed'); assert.match(JSON.parse(dec.err).error.message, /declined/);
+    state.planStatus = 'requires_action';
+    let ra = JSON.parse((await runCli(['plan', 'set', 'oem', '--accept-terms'], env)).out);
+    assert.equal(ra.data.status, 'requires_action'); assert.match(ra.next[0].command, /billing status/);
+    assert.match((await runCli(['plan', 'set', 'oem', '--accept-terms'], human)).out, /\/billing/);
+
+    // packs: request_id + status branches
+    state.plan = 'oem';
+    let pk = await runCli(['plan', 'packs', 'buy', '1000'], human);
+    assert.match(pk.out, /Added 1000 credits \(\$200\)/);
+    state.packStatus = 'failed';
+    let pf = await runCli(['plan', 'packs', 'buy', '1000'], env);
+    assert.equal(JSON.parse(pf.err).error.code, 'charge_failed'); assert.equal(JSON.parse(pf.err).error.message, 'insufficient funds');
+    state.packStatus = 'requires_action';
+    assert.match((await runCli(['plan', 'packs', 'buy', '1000'], human)).out, /confirm the \$200 pack payment.*\/billing/);
+    assert.match(last('/api/sqid/billing/packs', 'POST').body.request_id, /^cli-/);
+
+    // OEM billing: auto-reload body, topup refused, status shows the pack and no dollar value
+    await runCli(['billing', 'auto-reload', 'on', '--threshold-credits', '100', '--pack', '5000'], env);
+    assert.deepEqual(last('/api/sqid/billing/auto-reload', 'PUT').body, { enabled : true, below : 100, pack : 5000 });
+    assert.equal((await runCli(['billing', 'auto-reload', 'on', '--threshold-credits', '5', '--pack', '1000'], env)).code, 2, 'OEM threshold is 10 or more');
+    let tu = await runCli(['billing', 'topup', '20'], env);
+    assert.equal(JSON.parse(tu.err).error.code, 'packs_only'); assert.match(JSON.parse(tu.err).error.examples[0].command, /plan packs buy/);
+    assert.equal(seen.filter(r => r.path === '/api/sqid/billing/topup').length, 0, 'no charge attempted on OEM');
+    let bs = await runCli(['billing', 'status'], human);
+    assert.match(bs.out, /Credits: 640\n/); assert.doesNotMatch(bs.out, /\$160/);
+    assert.match(bs.out, /Auto-reload: at 100 credits, buy the 1000 pack/); assert.doesNotMatch(bs.out, /refill to/);
+    state.plan = 'developer';
+    let bd = await runCli(['billing', 'status'], human);
+    assert.match(bd.out, /Credits: 640 \(\$160\.00\)/); assert.match(bd.out, /Auto-reload: at \$5\.00, refill to \$25\.00/);
+    let inv = await runCli(['billing', 'invoices'], human);
+    assert.match(inv.out, /SQ-1  paid  \$675\.00  2026-11-17  https:\/\/pay\.stripe\.test\/in_1\.pdf/);
+
+    // cap show reads /api/sqid/limits
+    let cs = JSON.parse((await runCli(['cap', 'show', '--site', 'sdk1'], env)).out).data;
+    assert.deepEqual({ cap : cs.cap, used : cs.used }, { cap : 5000, used : 42 });
+
+    // doctor: health is an object
+    let dr = JSON.parse((await runCli(['doctor', '--site', 'sdk1'], env)).out).data;
+    assert.equal(dr.checks.find(c => c.name === 'webhooks').status, 'fail');
+
+    // moments list: the name is visitor.name
+    assert.match((await runCli(['moments', 'list', '--site', 'sdk1'], human)).out, /Jane Park/);
+
+    // enrich: 200 false, 400 plain text, 429 JSON
+    let nm = JSON.parse((await runCli(['enrich', '--email', 'a@b.co', '--site', 'sdk1'], env)).out);
+    assert.deepEqual(nm.data, { match : false, credit_used : false });
+    state.enrich = { status : 400, body : 'Not enough credits', type : 'text/html' };
+    let oc = JSON.parse((await runCli(['enrich', '--email', 'a@b.co', '--site', 'sdk1'], env)).err).error;
+    assert.equal(oc.code, 'out_of_credit'); assert.equal(oc.message, 'Not enough credits');
+    state.enrich = { status : 400, body : 'Not available on sandbox SDKs', type : 'text/html' };
+    assert.equal(JSON.parse((await runCli(['enrich', '--email', 'a@b.co', '--site', 'sdk1'], env)).err).error.code, 'sandbox_refused');
+    state.enrich = { status : 429, body : '{"message":"Rate limit exceeded"}', type : 'application/json' };
+    let rl = JSON.parse((await runCli(['enrich', '--email', 'a@b.co', '--site', 'sdk1'], env)).err).error;
+    assert.equal(rl.code, 'rate_limited'); assert.equal(rl.message, 'Rate limit exceeded');
+
+    // sites origins: read from the signed config, merge, never wipe
+    let so = JSON.parse((await runCli(['sites', 'origins', '--sandbox'], env)).out).data;
+    assert.deepEqual(so.origins, ['https://sandbox.sqid.dev']);
+    let add = await runCli(['sites', 'origins', 'Sandbox', '--add', 'localhost:3000'], env);
+    assert.equal(add.code, 0, add.err);
+    assert.deepEqual(last('/api/projects/sb1', 'PATCH').body, { site_origins : ['https://sandbox.sqid.dev', 'http://localhost:3000'], product_origins : ['https://sandbox.sqid.dev', 'https://app.sandbox.test', 'http://localhost:3000'] });
+    await runCli(['sites', 'origins', '--sandbox', '--remove', 'https://sandbox.sqid.dev'], env);
+    assert.deepEqual(last('/api/projects/sb1', 'PATCH').body.site_origins, ['http://localhost:3000']);
+    let empty = await runCli(['sites', 'origins', '--sandbox', '--remove', 'http://localhost:3000'], env);
+    assert.equal(empty.code, 2, 'never leaves a site with no origins');
+    assert.equal(seen.filter(r => r.path === '/api/projects/sb1' && r.method === 'PATCH').length, 2);
+  } finally { server.close(); pub.close(); }
 });
