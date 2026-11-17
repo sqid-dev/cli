@@ -1,9 +1,9 @@
 ---
 name: sqid
-description: Add Sqid to a web app and use what it learns about visitors, all from the terminal with the `sqid` CLI. Use when the user says "add Sqid", "install Sqid", "who is on my site", "identify visitors", "de-anonymize visitors", "visitor identification webhook", "send visitor moments to our agent", "Sqid signals", "enrich this email", "Sqid billing/plan/credits", or asks to check a Sqid setup.
+description: Add Sqid to a web app and use what it learns about visitors, all from the terminal with the `sqid` CLI. Use when the user says "add Sqid", "set up Sqid", "install Sqid", "try Sqid", "who is on my site", "identify visitors", "de-anonymize visitors", "visitor identification webhook", "send visitor moments to our agent", "Sqid signals", "enrich this email", "Sqid billing/plan/credits", or asks to check a Sqid setup.
 allowed-tools: Bash(sqid *), Bash(npx -y @sqid-dev/sqid *), Bash(npx -y sqid-cli *)
 metadata:
-  version: 0.1.0
+  version: 0.1.3
   source: https://github.com/sqid-dev/cli
 ---
 
@@ -27,21 +27,70 @@ on Sqid is thin or stale: prefer the CLI's own output (`--json`, `webhook previe
 
 ## What the user wants, and what to run
 
-**"Add Sqid" (nothing more said)**
-1. `sqid auth status --json`. If not signed in, run `sqid auth login` and tell the user a
-   browser window needs their approval (the URL is printed if it does not open; `--device`
-   for SSH). Wait for it to finish.
-2. `sqid init --url <public site url> --json`. Take the URL from the project (homepage,
-   env) or ask once. It creates the site and prints the snippet.
-3. Paste the snippet before `</head>` in the root layout (Next: `app/layout.tsx` or
-   `pages/_document.tsx`; Nuxt: `nuxt.config` head; plain HTML: the shared head).
-4. Ask which outcome they want, offering these in this order: know who is visiting
-   (identification webhook), see visitors on demand, send moments to an agent, personalize
-   the page in the browser. Do not assume moments.
-   No website yet, or they want to see it work first: `sqid playground` runs a demo site
-   (Driftwood) on localhost with a Sqid panel; the Sandbox identifies every visitor with a
-   made-up person and spends no credits. Open it for them and point at the panel's Start tab.
-5. Finish with `sqid doctor --json` and report the five lines in the output format below.
+**"Add Sqid" / "set up Sqid" (nothing more said): the guided setup**
+One question at a time, multiple choice (in Claude Code, ask it so it renders as a
+multiple-choice question), each with a default ("say 'not sure' and I'll pick
+X"). At most three questions in all. Never ask what you can detect. Say what will change
+before any write; after each step, one line saying what happened.
+
+1. Detect, do not ask. `sqid auth status --json`; if not signed in, `sqid auth login` and tell
+   the user a browser window needs their approval (`--device` for SSH). Then `sqid whoami
+   --json`, `sqid sites list --json`, `sqid billing status --json`. From the open project,
+   if any: the site URL (package.json `homepage`, `SITE_URL` / `NEXT_PUBLIC_SITE_URL`-style env
+   vars, `vercel.json`, `CNAME`, wrangler config), the framework and the root layout file.
+2. Read the person's skill level from what you see. A repo with a framework open and technical
+   wording: terse, code-first. No repo, or plain wording ("my website"): plain language, gloss
+   jargon once ("a webhook, meaning Sqid sends each identified visitor to a web address you
+   own"), make the code edits yourself, and show visitors in chat (`sqid visitors list`) before
+   suggesting a webhook. Ask "Will you be writing code, or should I handle it?" only when the
+   signals conflict.
+3. Open with the goal question, after a plan line and a sites line taken from step 1 (never
+   invent a balance or welcome state):
+   "You're signed in to Sqid. {plan line} {sites line}. One question to pick the right path:
+   what do you want Sqid to do?
+    (a) Show me who's visiting my website
+    (b) Add visitor identification to a product I sell to other businesses
+    (c) Just let me see it work first
+   Say 'not sure' and I'll start with (c)."
+   Plan line example: "You're on Developer: pay as you go, $0.25 per identified visitor, with
+   25 free credits once you add a card."
+
+**(a) Show me who's visiting my website**
+- Second question only if no URL was detected: "Which website should we start with? You can add
+  more later." If one was: "I found example.com in this project. Set that up?" (yes / another site).
+- Third question: "Start on the real site, or try a safe test version first (free, made-up
+  visitors)?" Default: the real site when a deployable website project is open; the test
+  version (`sqid playground`) when there is no project or page.
+- Real site: `sqid init --url <url> --json` creates the site and prints the snippet. Paste it
+  before `</head>` in the root layout (Next: `app/layout.tsx` or `pages/_document.tsx`; Nuxt:
+  `nuxt.config` head; plain HTML: the shared head); with no project open, show where to paste
+  it. Add any other addresses it runs on (www, staging) with `sqid sites origins --add`.
+- Then the outcome, by skill level: developers get the identification webhook (the next
+  section) built from `sqid webhook preview`; others see visitors with `sqid visitors list`
+  first, and a webhook only if they have an endpoint. Do not assume moments.
+- Plan: recommend, do not ask. Developer fits: $0.25 a credit, 25 welcome credits once a card
+  is added (`sqid billing card`).
+- Finish with `sqid doctor --json` and report the five lines in the output format below.
+
+**(b) Embed in a product I sell (OEM)**
+- Second question: "Roughly how many customer sites will use it?" (1-10 / 10-100 / more than
+  100 or custom terms).
+- Recommend, do not ask: OEM Launch ($675/month, 500 identifications a month included, credit
+  packs after: 1,000 for $200, 5,000 for $900, 10,000 for $1,700, 25,000 for $4,000) for small
+  and medium; Enterprise ("talk to us", a custom plan) for large or custom terms. Suggest seeing
+  it work in the Sandbox first (`sqid playground`).
+- The upgrade is owner only and needs a card. Never upgrade without an explicit yes; then
+  `sqid plan set oem --accept-terms` (it accepts the OEM Launch addendum,
+  https://sqid.dev/oem-launch-terms.html) or the console's billing page.
+- Then the same site steps as (a) for their first customer site or the Sandbox, and point at
+  https://docs.sqid.dev/api-reference for embedding.
+
+**(c) Just let me see it work first** (also: no website, or "try", "test", "demo", "playground")
+- Before it opens, say what to look at: "You'll appear as an anonymous visitor, then as a person
+  within a couple of seconds." Then `sqid playground` (Driftwood, a demo site on
+  http://localhost:3000 with a Sqid panel; uses their sign-in and the Sandbox, no credits). Point
+  at the panel's Start tab.
+- After: offer "Put Sqid on my site", which is branch (a).
 
 **"Tell me who is on my site" / de-anonymize / identify visitors / lead capture**
 The default path. `sqid webhook add https://<their-app>/api/visitors --json` (identification
@@ -66,9 +115,12 @@ Browser side, no webhook: `new squid.engine()` and the `visitor.identified` even
 shows what the endpoint answered. `sqid webhook retry <id> <event_id>` after a fix.
 
 **"Test locally"**
-Endpoints must be public https, so a localhost handler cannot receive deliveries directly.
-Use `sqid webhook preview` to build and unit-test the handler, then a tunnel (the user's
-choice) or the deployed URL for `webhook test`. See `references/local-testing.md`.
+The Sandbox site identifies every new visitor as one of 50 made-up people, spends no credits
+and never produces moments. Allow the dev server on it with `sqid sites origins --sandbox --add
+http://localhost:3000`, paste `sqid snippet --site Sandbox` into the page. Endpoints must be
+public https, so a localhost handler cannot receive deliveries directly: build and unit-test
+the handler from `sqid webhook preview`, then a tunnel (the user's choice) or the deployed URL
+for `webhook test`. See `references/local-testing.md`.
 
 **"Who has been on the site?" / "find visitors from <company>" (on demand, no webhook)**
 `sqid visitors list --json` (newest identified first; `--search acme` matches name, company
@@ -77,7 +129,8 @@ or email prefixes; `--all-sites`). `sqid visitors get <id> --json` for the full 
 
 **"Enrich this email / phone / LinkedIn"**
 `sqid enrich --email jane@acme.com --json` (or `--phone`, `--linkedin`). The first run
-creates an SDK key for the site named "CLI on <hostname>". For the user's own backend,
+creates an SDK key for the site named "CLI on <hostname>". No match answers "no match (no
+credit used)"; enrichment is refused on the Sandbox. For the user's own backend,
 `sqid keys create --name Production` and the REST API https://docs.sqid.dev/api-reference.
 
 **"Turn on Signals" / "no moments are coming"**
@@ -86,10 +139,12 @@ shows recent ones; `sqid moments tail` follows them live.
 
 **Billing: "add a card", "what's left", "upgrade", "cap spend"**
 `sqid billing status --json` (plan, card, balance, this month). `sqid billing card` opens the
-browser; never ask for card numbers. `sqid plan set oem --accept-terms` upgrades (tell the
-user it accepts the OEM addendum and charges $500/month); `sqid plan packs buy 5000` for OEM
-credits; `sqid billing topup 20` on Developer. `sqid cap set 5000` limits identifications per
-site; `sqid usage --json` shows the month. `sqid logs api --failed` and `sqid logs webhooks
+browser; never ask for card numbers. `sqid plan show` for the plan and renewal. `sqid plan set oem
+--accept-terms` upgrades to OEM Launch (only on an explicit yes from the owner; tell the user it
+accepts the OEM Launch addendum and charges $675/month for 500 identifications a month);
+`sqid plan packs buy 5000` buys OEM credits; `sqid billing topup 20` on Developer only ($0.25 a
+credit). If a payment needs the bank's confirmation, the CLI prints the console billing page.
+`sqid cap set 5000` limits identifications per site; `sqid usage --json` shows the month. `sqid logs api --failed` and `sqid logs webhooks
 --failed` for failures.
 
 ## Output format when you finish a setup

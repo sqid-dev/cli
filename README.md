@@ -31,6 +31,16 @@ In Claude Code the whole flow is one line:
 Ask for moments instead ("send visitor moments to our agent") and the webhook is
 wired to `/api/moments` with `--event moment`. Both can run side by side.
 
+Say only "set up Sqid" and the skill runs a guided setup: it detects what it can
+(sign-in, plan, sites, the URL in the project) and asks at most three questions,
+starting with what you want Sqid to do: see who visits your site, add identification
+to a product you sell (OEM Launch), or just see it work first (`sqid playground`, the
+Sandbox, no credits).
+
+To try the snippet on a local dev server, allow it on the Sandbox site:
+`sqid sites origins --sandbox --add http://localhost:3000`. Every new visitor there
+becomes one of 50 made-up people; nothing is charged.
+
 What `sqid init` changes:
 
 - Creates a site on your Sqid account (starting the free Developer plan first
