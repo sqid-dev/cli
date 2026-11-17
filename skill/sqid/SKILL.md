@@ -77,7 +77,7 @@ before any write; after each step, one line saying what happened.
   100 or custom terms).
 - Recommend, do not ask: OEM Launch ($675/month, 500 identifications a month included, credit
   packs after: 1,000 for $200, 5,000 for $900, 10,000 for $1,700, 25,000 for $4,000) for small
-  and medium; Enterprise ("talk to us", a custom plan) for large or custom terms. Suggest seeing
+  and medium; Enterprise ("talk to us" at help@asksquid.ai, a custom plan) for large or custom terms. Suggest seeing
   it work in the Sandbox first (`sqid playground`).
 - The upgrade is owner only and needs a card. Never upgrade without an explicit yes; then
   `sqid plan set oem --accept-terms` (it accepts the OEM Launch addendum,
