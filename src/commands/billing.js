@@ -50,7 +50,7 @@ export async function run({ args, flags, out, mode }){
   }
 
   if(sub === 'card'){
-    let url = `${(flags.api || API_ORIGIN)}/billing?from=cli`;
+    let url = `${(flags.api || API_ORIGIN)}/billing?from=cli&add=card`;
     let before = await api('GET', `/api/sqid/billing${q}`, { flags }).catch(() => null);
     let had = (before?.cards || []).map(c => c.id).sort().join(',');
     let opened = flags.browser !== false && openBrowser(url);

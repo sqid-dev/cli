@@ -75,6 +75,12 @@ continue from whatever is missing.
   https://docs.sqid.dev/sdk/installation#on-a-website-builder one per line, and wait while they
   paste and publish. Add any other address it runs on (staging, a second domain) with
   `sqid sites origins --add`.
+- Credits: a real site identifies visitors only with credits. If `sqid billing status` shows no
+  card, say: "One more step: Sqid needs a card on file to identify visitors on a real site.
+  Adding one gives you 25 free credits; nothing is charged unless you buy credits or turn on
+  auto-reload." Then `sqid billing card` (opens the card form in the browser and waits until
+  the card is saved; the card never passes through the terminal). If they'd rather not yet,
+  carry on and list it as the next thing to do.
 - Then the outcome, by skill level: developers get the identification webhook (the next
   section) built from `sqid webhook preview`; others see visitors with `sqid visitors list`
   first, and a webhook only if they have an endpoint. Do not assume moments.
@@ -166,6 +172,7 @@ what actually happened; `doctor` decides the last one:
 ✓ Signed in to Sqid
 ✓ Site set up
 ✓ Snippet added                          (the file it went into)
+✓ Card added (25 free credits)          (real site only; the Sandbox needs none)
 ✓ Visitors showing, or webhook wired     (→ /api/visitors, or "none yet")
 ✓ Stream is live                         (doctor: deployed + connected + webhooks healthy)
 ```
