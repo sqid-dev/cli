@@ -50,16 +50,35 @@ export async function run({ args, flags, out, mode }){
   }
 
   if(sub === 'card'){
-    let url = `${(flags.api || API_ORIGIN)}/billing?from=cli&add=card`;
+    // (older note) a one-time card link; else the console's card form
+    // if a link can't be made (a trial, too many links in an hour, an older console).
+    // A one-time link to Stripe's card page, bound to this person: it only opens in a browser signed in to Sqid
+    // as them. Someone who can bill several accounts must say which (--account); a link that can't be made
+    // (a trial, too many in an hour, an older console) falls back to the console's card form.
+    let link = null;
+    try{ link = await api('POST', `/api/sqid/billing/card-link${q}`, { flags, body : {} }); }
+    catch(error){
+      if(error.code === 'account_required'){
+        let list = await api('GET', '/api/sqid/billing/accounts', { flags }).catch(() => []);
+        throw new CliError('account_required', 'You can bill more than one account. Say which one the card is for.', 'Pass --account <owner email>.', (list || []).map(a => ({ command : `sqid billing card --account ${a.ownerEmail}`, description : a.role === 'owner' ? 'Your own account' : 'You are a billing admin' })), undefined, 2);
+      }
+      if(['account_closed', 'not_while_viewing_as', 'no_billing_access'].includes(error.code)){ throw error; }
+    }
+    let base = flags.api || API_ORIGIN;
+    let url = String(link?.url || '').startsWith(`${base}/add-card/`) || /^https:\/\/app\.sqid\.dev\/add-card\//.test(String(link?.url || '')) ? link.url : `${base}/billing?from=cli&add=card`;
+    if(link?.account){ out.note(`For the Sqid account ${link.account}.`); }
     let before = await api('GET', `/api/sqid/billing${q}`, { flags }).catch(() => null);
     let had = (before?.cards || []).map(c => c.id).sort().join(',');
     let opened = flags.browser !== false && openBrowser(url);
-    out.note(opened ? `Opening ${url} to add a card. Waiting...` : `Open ${url} in your browser to add a card. Waiting...`);
+    out.note(opened ? `Opening Sqid's secure card form in your browser (nothing is charged). Waiting...\n  ${url}` : `Open this link in a browser signed in to Sqid and add the card in the secure form (it goes to Stripe; nothing is charged; it works for 30 minutes, only for you). Waiting...\n  ${url}`);
     if(mode === 'agent'){ process.stderr.write(JSON.stringify({ event : 'open_url', url, opened : !!opened }) + '\n'); }
     let until = Date.now() + 10 * 60 * 1000;
+    let tick = 0;
     while(Date.now() < until){
       await new Promise(r => setTimeout(r, 4000));
-      let now = await api('GET', `/api/sqid/billing${q}`, { flags }).catch(() => null);
+      // every 4th check reads fresh from Stripe (the console caches its view for a few minutes)
+      let now = (++tick % 4 === 0 ? await api('POST', `/api/sqid/billing/refresh${q}`, { flags, body : {} }).catch(() => null) : null)
+             || await api('GET', `/api/sqid/billing${q}`, { flags }).catch(() => null);
       let ids = (now?.cards || []).map(c => c.id).sort().join(',');
       if(ids && ids !== had){ let c = now.cards.find(x => x.default) || now.cards[0]; return { data : { card : { brand : c.brand, last4 : c.last4 } }, text : `Card saved: ${c.brand} •••• ${c.last4}.`, next : [{ command : 'sqid billing status', when : 'to see the account' }] }; }
     }
