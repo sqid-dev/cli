@@ -71,9 +71,10 @@ continue from whatever is missing.
 - Real site: `sqid init --url <url> --json` creates the site (it adds the www. or bare twin of
   the address itself) and prints the snippet. Paste it before `</head>` in the root layout
   (Next: `app/layout.tsx` or `pages/_document.tsx`; Nuxt: `nuxt.config` head; plain HTML: the
-  shared head). On a website builder, give that builder's steps from
-  https://docs.sqid.dev/sdk/installation#on-a-website-builder one per line, and wait while they
-  paste and publish. Add any other address it runs on (staging, a second domain) with
+  shared head). On a website builder, give that builder's steps from its guide,
+  https://docs.sqid.dev/sdk/install/<wordpress|shopify|squarespace|wix|webflow|framer|hubspot-cms|ghost|google-tag-manager|plain-html>
+  (Google Tag Manager works on any builder that already runs it), one per line, and wait while
+  they paste and publish. Add any other address it runs on (staging, a second domain) with
   `sqid sites origins --add`.
 - Credits: a real site identifies visitors only with credits. If `sqid billing status` shows no
   card, say: "Last step: add a card and you get 25 free credits, enough for your first 25
