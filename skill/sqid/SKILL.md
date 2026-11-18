@@ -76,9 +76,9 @@ continue from whatever is missing.
   paste and publish. Add any other address it runs on (staging, a second domain) with
   `sqid sites origins --add`.
 - Credits: a real site identifies visitors only with credits. If `sqid billing status` shows no
-  card, say: "One more step: Sqid needs a card on file to identify visitors on a real site.
-  Adding one gives you 25 free credits; nothing is charged unless you buy credits or turn on
-  auto-reload." Then `sqid billing card` (opens the card form in the browser and waits until
+  card, say: "Last step: add a card and you get 25 free credits, enough for your first 25
+  identified visitors. Adding it charges nothing; you only pay if you later buy credits or
+  turn on auto-reload. Without credits a real site cannot identify anyone." Then `sqid billing card` (opens the card form in the browser and waits until
   the card is saved; the card never passes through the terminal). If they'd rather not yet,
   carry on and list it as the next thing to do.
 - Then the outcome, by skill level: developers get the identification webhook (the next
