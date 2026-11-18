@@ -52,12 +52,25 @@ export async function run({ args, flags, out, mode }){
   if(sub === 'card'){
     // A one-time Stripe page that saves a card for this account (no console sign-in); the console's card form
     // if a link can't be made (a trial, too many links in an hour, an older console).
-    let link = await api('POST', `/api/sqid/billing/card-link${q}`, { flags, body : {} }).catch(() => null);
-    let url = /^https:\/\/checkout\.stripe\.com\//.test(String(link?.url || '')) ? link.url : `${(flags.api || API_ORIGIN)}/billing?from=cli&add=card`;
+    // A one-time link to Stripe's card page, bound to this person: it only opens in a browser signed in to Sqid
+    // as them. Someone who can bill several accounts must say which (--account); a link that can't be made
+    // (a trial, too many in an hour, an older console) falls back to the console's card form.
+    let link = null;
+    try{ link = await api('POST', `/api/sqid/billing/card-link${q}`, { flags, body : {} }); }
+    catch(error){
+      if(error.code === 'account_required'){
+        let list = await api('GET', '/api/sqid/billing/accounts', { flags }).catch(() => []);
+        throw new CliError('account_required', 'You can bill more than one account. Say which one the card is for.', 'Pass --account <owner email>.', (list || []).map(a => ({ command : `sqid billing card --account ${a.ownerEmail}`, description : a.role === 'owner' ? 'Your own account' : `Billing admin${a.name ? ' for ' + a.name : ''}` })), undefined, 2);
+      }
+      if(['account_closed', 'not_while_viewing_as', 'no_billing_access'].includes(error.code)){ throw error; }
+    }
+    let base = flags.api || API_ORIGIN;
+    let url = String(link?.url || '').startsWith(`${base}/add-card/`) || /^https:\/\/app\.sqid\.dev\/add-card\//.test(String(link?.url || '')) ? link.url : `${base}/billing?from=cli&add=card`;
+    if(link?.account){ out.note(`For the Sqid account ${link.account}.`); }
     let before = await api('GET', `/api/sqid/billing${q}`, { flags }).catch(() => null);
     let had = (before?.cards || []).map(c => c.id).sort().join(',');
     let opened = flags.browser !== false && openBrowser(url);
-    out.note(opened ? `Opening a secure Stripe page to add a card (nothing is charged). Waiting...\n  ${url}` : `Open this secure Stripe page to add a card (nothing is charged; it works once, for 30 minutes). Waiting...\n  ${url}`);
+    out.note(opened ? `Opening a secure Stripe page to add a card (nothing is charged). Waiting...\n  ${url}` : `Open this link in a browser signed in to Sqid to add a card on Stripe's page (nothing is charged; it works for 30 minutes, only for you). Waiting...\n  ${url}`);
     if(mode === 'agent'){ process.stderr.write(JSON.stringify({ event : 'open_url', url, opened : !!opened }) + '\n'); }
     let until = Date.now() + 10 * 60 * 1000;
     let tick = 0;
