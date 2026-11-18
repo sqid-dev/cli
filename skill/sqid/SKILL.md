@@ -3,7 +3,7 @@ name: sqid
 description: Add Sqid to a web app and use what it learns about visitors, all from the terminal with the `sqid` CLI. Use when the user says "add Sqid", "set up Sqid", "install Sqid", "try Sqid", "who is on my site", "identify visitors", "de-anonymize visitors", "visitor identification webhook", "send visitor moments to our agent", "Sqid signals", "enrich this email", "Sqid billing/plan/credits", or asks to check a Sqid setup.
 allowed-tools: Bash(sqid *), Bash(npx -y @sqid-dev/sqid *), Bash(npx -y sqid-cli *)
 metadata:
-  version: 0.1.6
+  version: 0.1.7
   source: https://github.com/sqid-dev/cli
 ---
 
@@ -108,7 +108,8 @@ continue from whatever is missing.
 **(c) Just let me see it work first** (also: no website, or "try", "test", "demo", "playground")
 - Before it opens, say what to look at: "You'll appear as an anonymous visitor, then as a person
   within a couple of seconds." Then `sqid playground` (Driftwood, a demo site on
-  http://localhost:3000 with a Sqid panel; uses their sign-in and the Sandbox, no credits). Point
+  http://localhost:3000, or the next free port if 3000 is busy: use the address it prints; never stop
+  another server to free a port. It uses their sign-in and the Sandbox, no credits). Point
   at the panel on the right: it shows "Anonymous", then a name, title and company.
 - After: offer "Put Sqid on my site", which is branch (a).
 
