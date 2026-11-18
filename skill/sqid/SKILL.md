@@ -3,7 +3,7 @@ name: sqid
 description: Add Sqid to a web app and use what it learns about visitors, all from the terminal with the `sqid` CLI. Use when the user says "add Sqid", "set up Sqid", "install Sqid", "try Sqid", "who is on my site", "identify visitors", "de-anonymize visitors", "visitor identification webhook", "send visitor moments to our agent", "Sqid signals", "enrich this email", "Sqid billing/plan/credits", or asks to check a Sqid setup.
 allowed-tools: Bash(sqid *), Bash(npx -y @sqid-dev/sqid *), Bash(npx -y sqid-cli *)
 metadata:
-  version: 0.1.5
+  version: 0.1.6
   source: https://github.com/sqid-dev/cli
 ---
 
@@ -59,8 +59,10 @@ continue from whatever is missing.
     (b) Add visitor identification to a product I sell to other businesses
     (c) Just let me see it work first
    Say 'not sure' and I'll start with (c)."
-   Plan line example: "You're on Developer: pay as you go, $0.25 per identified visitor, with
-   25 free credits once you add a card."
+   Plan line example, free first: "You're on the free Developer plan: no monthly fee, and no card
+   needed to try it. The Sandbox is free with made-up visitors; add a card and your first 25 real
+   identified visitors are free. After that it's $0.25 each, and nothing is charged until you
+   choose to buy credits." Never open with the price.
 
 **(a) Show me who's visiting my website**
 - Second question only if no URL was detected: "Which website should we start with? You can add
@@ -85,7 +87,8 @@ continue from whatever is missing.
 - Then the outcome, by skill level: developers get the identification webhook (the next
   section) built from `sqid webhook preview`; others see visitors with `sqid visitors list`
   first, and a webhook only if they have an endpoint. Do not assume moments.
-- Plan: recommend, do not ask. Developer fits: $0.25 a credit, 25 welcome credits once a card
+- Plan: recommend, do not ask. Developer fits and is free to start (Sandbox free; 25 free real
+  identifications once a card is added; then $0.25 a credit, only when they buy). 25 welcome credits once a card
   is added (`sqid billing card`).
 - Finish with `sqid doctor --json` and report the five lines in the output format below.
 
