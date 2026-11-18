@@ -3,7 +3,7 @@ name: sqid
 description: Add Sqid to a web app and use what it learns about visitors, all from the terminal with the `sqid` CLI. Use when the user says "add Sqid", "set up Sqid", "install Sqid", "try Sqid", "who is on my site", "identify visitors", "de-anonymize visitors", "visitor identification webhook", "send visitor moments to our agent", "Sqid signals", "enrich this email", "Sqid billing/plan/credits", or asks to check a Sqid setup.
 allowed-tools: Bash(sqid *), Bash(npx -y @sqid-dev/sqid *), Bash(npx -y sqid-cli *)
 metadata:
-  version: 0.1.3
+  version: 0.1.4
   source: https://github.com/sqid-dev/cli
 ---
 
@@ -31,7 +31,14 @@ on Sqid is thin or stale: prefer the CLI's own output (`--json`, `webhook previe
 One question at a time, multiple choice (in Claude Code, ask it so it renders as a
 multiple-choice question), each with a default ("say 'not sure' and I'll pick
 X"). At most three questions in all. Never ask what you can detect. Say what will change
-before any write; after each step, one line saying what happened.
+before any write, naming the file for a code edit; after each step, one line saying what
+happened. Never ask for a card number, password or key in chat (`sqid billing card` opens
+the browser); if someone pastes a key, do not use it and tell them to delete it.
+
+Already set up? If the project has `.sqid.json` or a layout already contains
+`app.asksquid.ai/tfs/`, or `sqid sites list` shows a site for this address, do not run
+`init` again or paste a second snippet: say what you found, run `sqid doctor --json`, and
+continue from whatever is missing.
 
 1. Detect, do not ask. `sqid auth status --json`; if not signed in, `sqid auth login` and tell
    the user a browser window needs their approval (`--device` for SSH). Then `sqid whoami
@@ -58,13 +65,16 @@ before any write; after each step, one line saying what happened.
 **(a) Show me who's visiting my website**
 - Second question only if no URL was detected: "Which website should we start with? You can add
   more later." If one was: "I found example.com in this project. Set that up?" (yes / another site).
-- Third question: "Start on the real site, or try a safe test version first (free, made-up
-  visitors)?" Default: the real site when a deployable website project is open; the test
-  version (`sqid playground`) when there is no project or page.
-- Real site: `sqid init --url <url> --json` creates the site and prints the snippet. Paste it
-  before `</head>` in the root layout (Next: `app/layout.tsx` or `pages/_document.tsx`; Nuxt:
-  `nuxt.config` head; plain HTML: the shared head); with no project open, show where to paste
-  it. Add any other addresses it runs on (www, staging) with `sqid sites origins --add`.
+- If a website project is open, go straight to the real site. If not, third question: "What is
+  your website built with?" (WordPress / Shopify / Squarespace / Wix / Webflow / something else
+  or not sure / I'd rather try a test version first). The test version is `sqid playground`.
+- Real site: `sqid init --url <url> --json` creates the site (it adds the www. or bare twin of
+  the address itself) and prints the snippet. Paste it before `</head>` in the root layout
+  (Next: `app/layout.tsx` or `pages/_document.tsx`; Nuxt: `nuxt.config` head; plain HTML: the
+  shared head). On a website builder, give that builder's steps from
+  https://docs.sqid.dev/sdk/installation#on-a-website-builder one per line, and wait while they
+  paste and publish. Add any other address it runs on (staging, a second domain) with
+  `sqid sites origins --add`.
 - Then the outcome, by skill level: developers get the identification webhook (the next
   section) built from `sqid webhook preview`; others see visitors with `sqid visitors list`
   first, and a webhook only if they have an endpoint. Do not assume moments.
@@ -76,8 +86,8 @@ before any write; after each step, one line saying what happened.
 - Second question: "Roughly how many customer sites will use it?" (1-10 / 10-100 / more than
   100 or custom terms).
 - Recommend, do not ask: OEM Launch ($675/month, 500 identifications a month included, credit
-  packs after: 1,000 for $200, 5,000 for $900, 10,000 for $1,700, 25,000 for $4,000) for small
-  and medium; Enterprise ("talk to us" at help@asksquid.ai, a custom plan) for large or custom terms. Suggest seeing
+  packs after: 1,000 for $200, 5,000 for $900, 10,000 for $1,700, 25,000 for $4,000) for 1 to
+  100 customer sites; Enterprise ("talk to us" at help@asksquid.ai, a custom plan) for more than 100 or custom terms. Suggest seeing
   it work in the Sandbox first (`sqid playground`).
 - The upgrade is owner only and needs a card. Never upgrade without an explicit yes; then
   `sqid plan set oem --accept-terms` (it accepts the OEM Launch addendum,
@@ -89,7 +99,7 @@ before any write; after each step, one line saying what happened.
 - Before it opens, say what to look at: "You'll appear as an anonymous visitor, then as a person
   within a couple of seconds." Then `sqid playground` (Driftwood, a demo site on
   http://localhost:3000 with a Sqid panel; uses their sign-in and the Sandbox, no credits). Point
-  at the panel's Start tab.
+  at the panel on the right: it shows "Anonymous", then a name, title and company.
 - After: offer "Put Sqid on my site", which is branch (a).
 
 **"Tell me who is on my site" / de-anonymize / identify visitors / lead capture**
@@ -149,15 +159,17 @@ credit). If a payment needs the bank's confirmation, the CLI prints the console 
 
 ## Output format when you finish a setup
 
-Report exactly these lines, with a check only for what `doctor` confirmed:
+Report exactly these lines (the same ones the MCP setup and the docs use), with a check only for
+what actually happened; `doctor` decides the last one:
 
 ```
 ✓ Signed in to Sqid
-✓ Site provisioned
-✓ Script added to layout (one line)
-✓ Webhook wired → /api/visitors          (or /api/moments, or "none yet")
+✓ Site set up
+✓ Snippet added                          (the file it went into)
+✓ Visitors showing, or webhook wired     (→ /api/visitors, or "none yet")
 ✓ Stream is live                         (doctor: deployed + connected + webhooks healthy)
 ```
 
-If "deployed" or "connected" is not yet true, say the site has to be deployed and opened once
-before Sqid sees it, and that `sqid doctor` confirms it afterwards.
+Then at most two next things, if anything is pending. If "deployed" or "connected" is not yet
+true: publish the site and open it once, then run `sqid doctor`. Close with how to come back:
+"Ask me 'is Sqid working?' any time." 

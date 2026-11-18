@@ -55,6 +55,25 @@ export function toOrigins(input){
   return out;
 }
 
+// A public site is usually reached both with and without "www.": add the other one, so a visitor on
+// www.example.com is not refused because the site was created for example.com. Only for https
+// hosts: "www.x.y" adds "x.y", a bare two-label "x.y" adds "www.x.y". Local hosts, IPs and other
+// subdomains are left as given.
+export function withTwins(origins){
+  let out = [...origins];
+  for(let o of origins){
+    try{
+      let u = new URL(o);
+      if(u.protocol !== 'https:' || /^[\d.]+$/.test(u.hostname) || u.hostname === 'localhost'){ continue; }
+      let h = u.hostname, twin = null;
+      if(h.startsWith('www.')){ twin = h.slice(4); }
+      else if(h.split('.').length === 2){ twin = `www.${h}`; }
+      if(twin && twin.includes('.')){ let t = `https://${twin}${u.port ? ':' + u.port : ''}`; if(!out.includes(t)){ out.push(t); } }
+    }catch(error){ /* skip */ }
+  }
+  return out;
+}
+
 // Same template the console shows (Getting started and the SDK page).
 export const snippetFor = (sdkId) => `<script>
 ;(function(squid){

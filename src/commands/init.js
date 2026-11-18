@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { CliError, usageError } from '../errors.js';
-import { readProject, writeProject, guessName, guessUrl, toOrigins, snippetFor, listSites } from '../project.js';
+import { readProject, writeProject, guessName, guessUrl, toOrigins, withTwins, snippetFor, listSites } from '../project.js';
 
 export const help = `sqid init [--name <site name>] [--url <https://example.com[,https://www.example.com]>] [--yes]
 
@@ -10,7 +10,8 @@ Developer plan first (no card). Re-running in a folder that already has
 .sqid.json just prints that site's snippet again.
 
   --name   Site name (default: package.json name, else the folder name)
-  --url    Public URL(s) the snippet will run on (default: package.json homepage or SITE_URL-style env vars)
+  --url    Public URL(s) the snippet will run on (default: package.json homepage or SITE_URL-style env vars);
+           a bare domain also gets its www. address, and www. its bare one
   --yes    Create even when a site with the same name already exists (otherwise that site is reused)
 `;
 
@@ -21,7 +22,7 @@ export async function run({ args, flags, mode }){
   }
 
   let name    = flags.name ? String(flags.name).trim().slice(0, 50) : await guessName();
-  let origins = toOrigins(flags.url || args[0] || await guessUrl());
+  let origins = withTwins(toOrigins(flags.url || args[0] || await guessUrl()));
   if(!origins.length){
     throw usageError('A public URL is needed for the site (the snippet only runs on its own origins).', [
       { command : `sqid init --url https://example.com`, description : 'Create the site for that origin' },
