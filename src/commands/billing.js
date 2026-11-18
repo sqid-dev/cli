@@ -50,16 +50,22 @@ export async function run({ args, flags, out, mode }){
   }
 
   if(sub === 'card'){
-    let url = `${(flags.api || API_ORIGIN)}/billing?from=cli&add=card`;
+    // A one-time Stripe page that saves a card for this account (no console sign-in); the console's card form
+    // if a link can't be made (a trial, too many links in an hour, an older console).
+    let link = await api('POST', `/api/sqid/billing/card-link${q}`, { flags, body : {} }).catch(() => null);
+    let url = /^https:\/\/checkout\.stripe\.com\//.test(String(link?.url || '')) ? link.url : `${(flags.api || API_ORIGIN)}/billing?from=cli&add=card`;
     let before = await api('GET', `/api/sqid/billing${q}`, { flags }).catch(() => null);
     let had = (before?.cards || []).map(c => c.id).sort().join(',');
     let opened = flags.browser !== false && openBrowser(url);
-    out.note(opened ? `Opening ${url} to add a card. Waiting...` : `Open ${url} in your browser to add a card. Waiting...`);
+    out.note(opened ? `Opening a secure Stripe page to add a card (nothing is charged). Waiting...\n  ${url}` : `Open this secure Stripe page to add a card (nothing is charged; it works once, for 30 minutes). Waiting...\n  ${url}`);
     if(mode === 'agent'){ process.stderr.write(JSON.stringify({ event : 'open_url', url, opened : !!opened }) + '\n'); }
     let until = Date.now() + 10 * 60 * 1000;
+    let tick = 0;
     while(Date.now() < until){
       await new Promise(r => setTimeout(r, 4000));
-      let now = await api('GET', `/api/sqid/billing${q}`, { flags }).catch(() => null);
+      // every 4th check reads fresh from Stripe (the console caches its view for a few minutes)
+      let now = (++tick % 4 === 0 ? await api('POST', `/api/sqid/billing/refresh${q}`, { flags, body : {} }).catch(() => null) : null)
+             || await api('GET', `/api/sqid/billing${q}`, { flags }).catch(() => null);
       let ids = (now?.cards || []).map(c => c.id).sort().join(',');
       if(ids && ids !== had){ let c = now.cards.find(x => x.default) || now.cards[0]; return { data : { card : { brand : c.brand, last4 : c.last4 } }, text : `Card saved: ${c.brand} •••• ${c.last4}.`, next : [{ command : 'sqid billing status', when : 'to see the account' }] }; }
     }
