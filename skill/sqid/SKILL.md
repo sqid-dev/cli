@@ -3,7 +3,7 @@ name: sqid
 description: Add Sqid to a web app and use what it learns about visitors, all from the terminal with the `sqid` CLI. Use when the user says "add Sqid", "set up Sqid", "install Sqid", "try Sqid", "who is on my site", "identify visitors", "de-anonymize visitors", "visitor identification webhook", "send visitor moments to our agent", "Sqid signals", "enrich this email", "Sqid billing/plan/credits", or asks to check a Sqid setup.
 allowed-tools: Bash(sqid *), Bash(npx -y @sqid-dev/sqid *), Bash(npx -y sqid-cli *)
 metadata:
-  version: 0.1.4
+  version: 0.1.5
   source: https://github.com/sqid-dev/cli
 ---
 
