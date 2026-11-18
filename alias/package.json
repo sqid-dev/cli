@@ -1,6 +1,6 @@
 {
   "name": "sqid-cli",
-  "version": "0.1.0",
+  "version": "0.1.5",
   "description": "Alias of @sqid-dev/sqid: the Sqid CLI. `npx sqid-cli init` adds Sqid to an app from the terminal or a coding agent.",
   "license": "MIT",
   "type": "module",
@@ -15,7 +15,7 @@
     "node": ">=18.17"
   },
   "dependencies": {
-    "@sqid-dev/sqid": "^0.1.0"
+    "@sqid-dev/sqid": "^0.1.5"
   },
   "publishConfig": {
     "access": "public"
